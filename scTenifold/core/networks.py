@@ -5,7 +5,7 @@ import scipy.sparse.linalg
 from tqdm import tqdm
 from sklearn.utils.extmath import randomized_svd
 from warnings import warn
-from core.utils import cal_fdr
+from scTenifold.core.utils import cal_fdr
 
 __all__ = ("make_networks", "manifold_alignment", "d_regulation", "strict_direction")
 

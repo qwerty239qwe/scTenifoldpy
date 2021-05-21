@@ -1,6 +1,6 @@
 import pandas as pd
-from core.utils import get_test_df
-from core.base import scTenifoldNet
+from scTenifold.core.utils import get_test_df
+from scTenifold.core.base import scTenifoldNet
 
 
 def test_scTenifoldNet():

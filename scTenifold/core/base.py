@@ -1,8 +1,8 @@
 import numpy as np
-from core.QC import scQC
-from core.networks import *
-from core.normalization import cpm_norm
-from core.decomposition import tensor_decomp
+from scTenifold.core.networks import *
+from scTenifold.core.QC import scQC
+from scTenifold.core.normalization import cpm_norm
+from scTenifold.core.decomposition import tensor_decomp
 
 
 class scBase:
