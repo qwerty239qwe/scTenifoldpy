@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 import scipy.sparse.linalg
+from functools import partial
 from tqdm import tqdm
 from sklearn.utils.extmath import randomized_svd
 from warnings import warn
@@ -10,34 +11,37 @@ from scTenifold.core.utils import cal_fdr
 __all__ = ("make_networks", "manifold_alignment", "d_regulation", "strict_direction")
 
 
-def cal_pc_coefs(X, k, n_comp):
+def cal_pc_coefs(k, X, n_comp, random_state=42):
     y = X[:, k]
-    Xi = np.delete(X, k, 1)
-    U, Sigma, VT = randomized_svd(Xi,
-                                  n_components=n_comp,
-                                  n_iter=5,
-                                  random_state=None)
-    coef = VT.T
-    score = Xi.dot(coef)
+    Xi = np.delete(X, k, 1)  # cells x (genes - 1)
+    U, Sigma, V = randomized_svd(Xi,
+                                 n_components=n_comp,
+                                 n_iter=5,
+                                 random_state=random_state)
+    coef = V.T  # (genes - 1) x n_comp
+    score = Xi.dot(coef)  # cells x n_comp
     score = score / np.expand_dims(np.power(np.sqrt(np.sum(np.power(score, 2), axis=0)), 2), 0)
-    betas = coef.dot(np.sum(np.expand_dims(y, 1) * score, axis=0))
+    betas = coef.dot(np.sum(np.expand_dims(y, 1) * score, axis=0))  # (genes - 1),
     return np.expand_dims(betas, 1)
 
 
-def pcNet(X: pd.DataFrame,
-          n_comp = 3,
-          scale_scores = True,
-          symmetric = False,
-          q: float = 0.):
-    assert all(X.sum(axis=1) > 0)
-    assert n_comp > 2 and n_comp <= X.shape[0]
-    assert 1 >= q >= 0
-    gene_names = X.index
-    Xt = X.T
+def pcNet(X: np.ndarray,  # genes x cells
+          n_comp: int = 3,
+          scale_scores: bool = True,
+          symmetric: bool = False,
+          q: float = 0.,
+          random_state: int = 42):
+
+    assert 2 < n_comp <= X.shape[0]
+    assert 0 <= q <= 1
+    Xt = X.T  # cells x genes
     Xt = (Xt - Xt.mean(axis=0)) / Xt.std(axis=0)
-    A = 1 - np.eye(Xt.shape[1])
-    B = np.concatenate([cal_pc_coefs(Xt.values, i, n_comp)
-                        for i in range(Xt.shape[1])], axis=1).T
+    A = 1 - np.eye(Xt.shape[1])  # genes x genes
+
+    p_ = partial(cal_pc_coefs, X=Xt, n_comp=n_comp, random_state=random_state)
+    bs = [p_(i) for i in range(Xt.shape[1])]
+    B = np.concatenate(bs, axis=1).T  # beta matrix ((genes - 1), genes)
+
     A[A > 0] = np.ravel(B)
     if symmetric:
         A = (A + A.T) / 2
@@ -46,7 +50,7 @@ def pcNet(X: pd.DataFrame,
         A = A / np.max(abs_A)
     A[abs_A < np.quantile(abs_A, q)] = 0
     np.fill_diagonal(A, 0)
-    return pd.DataFrame(A, index=gene_names, columns=gene_names)
+    return A
 
 
 def make_networks(data: pd.DataFrame,
@@ -55,12 +59,13 @@ def make_networks(data: pd.DataFrame,
                   n_comp: int = 3,
                   scale_scores: bool = True,
                   symmetric: bool = False,
-                  q: float = 0.95
+                  q: float = 0.95,
+                  random_state: int = 42
                   ):
     gene_names = data.index.to_numpy()
     n_genes, n_cells = data.shape
     assert not np.array_equal(gene_names, np.array([i for i in range(n_genes)])), 'Gene names are required'
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(random_state)
     networks = np.empty((n_genes, n_genes, n_nets), dtype=np.float32)
     for net in tqdm(range(n_nets)):
         sample = rng.choice(n_cells, n_samp_cells, replace=False)
@@ -68,18 +73,25 @@ def make_networks(data: pd.DataFrame,
         sel_genes = (Z.sum(axis=1) > 0)
         Z = Z.loc[sel_genes, :]
         temp_df = pd.DataFrame(columns=gene_names, index=gene_names)
-        temp_df.loc[sel_genes, sel_genes] = pd.DataFrame(pcNet(Z,
-                                                               n_comp=n_comp,
-                                                               scale_scores=scale_scores,
-                                                               symmetric=symmetric,
-                                                               q=q),
+        assert all(Z.sum(axis=1) > 0), "All genes must be expressed in at least one cell"
+        temp_df.loc[sel_genes, sel_genes] = pd.DataFrame(pd.DataFrame(pcNet(Z.values,
+                                                                            n_comp=n_comp,
+                                                                            scale_scores=scale_scores,
+                                                                            symmetric=symmetric,
+                                                                            q=q,
+                                                                            random_state=random_state),
+                                                                      index=Z.index,
+                                                                      columns=Z.index),
                                                          index=sel_genes.index,
                                                          columns=sel_genes.index)
         networks[:, :, net] = temp_df.fillna(0.0).values
     return networks
 
 
-def manifold_alignment(X, Y, d = 30, tol=1e-8):
+def manifold_alignment(X: pd.DataFrame,
+                       Y: pd.DataFrame,
+                       d: int = 30,
+                       tol: float = 1e-8):
     shared_genes = list(set(X.index) & set(Y.index))
     X = X.loc[shared_genes, shared_genes]
     Y = Y.loc[shared_genes, shared_genes]

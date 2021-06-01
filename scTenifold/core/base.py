@@ -1,4 +1,5 @@
 import numpy as np
+import time
 from scTenifold.core.networks import *
 from scTenifold.core.QC import scQC
 from scTenifold.core.normalization import cpm_norm
@@ -49,6 +50,7 @@ class scTenifoldNet(scBase):
         self.QC_dict[label] = cpm_norm(self.QC_dict[label])
 
     def build(self):
+        start_time = time.time()
         print("performing QC and normalization")
         for label in self.data_dict:
             self._QC(label)
@@ -59,12 +61,24 @@ class scTenifoldNet(scBase):
         shared_gene_names = list(x_gene_names & y_gene_names)
 
         for label, qc_data in self.QC_dict.items():
+            make_networks_start_time = time.time()
             self._make_networks(label, data=qc_data.loc[shared_gene_names, :])
+            make_networks_finish_time = time.time()
+            print(f"{label}'s network reconstruction finished in {make_networks_finish_time - make_networks_start_time} secs.")
+
             self._tensor_decomp(label, shared_gene_names)
+            print(f"{label}'s tensor decomposition finished in {time.time() - make_networks_finish_time} secs.")
+        ma_s = time.time()
         tensorX = (self.tensor_dict[self.x_label] + self.tensor_dict[self.x_label].T) / 2
         tensorY = (self.tensor_dict[self.y_label] + self.tensor_dict[self.y_label].T) / 2
         self.manifold = manifold_alignment(tensorX, tensorY, **self.ma_kws)
+        print(f"MA finished in {time.time() - ma_s} secs.")
+
+        dr_s = time.time()
         self.d_regulation = d_regulation(self.manifold)
+        print(f"DR finished in {time.time() - dr_s} secs.")
+        print(f"process finished in {time.time() - start_time} secs.")
+
         return self.d_regulation
 
 

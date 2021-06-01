@@ -2,9 +2,22 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import chi2
+import networkx as nx
 
 
-def plot_network(network):
+def plot_network_graph(network):
+    network = network[network.s]
+    G = nx.from_numpy_array(network)
+    pos = nx.kamada_kawai_layout(G)
+    fig, ax = plt.subplots(figsize=(8, 8))
+    nx.draw_networkx_edges(G, pos, nodelist=[0], alpha=0.4)
+    nx.draw_networkx_nodes(G, pos,
+                           node_size=10,
+                           cmap=plt.cm.Reds_r)
+    plt.show()
+
+
+def plot_network_heatmap(network):
     sns.heatmap(network, center=0.0)
 
 
