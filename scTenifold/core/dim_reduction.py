@@ -37,12 +37,12 @@ def prepare_PCA_dfs(feature_df,
         n_components = min(x.shape[0], x.shape[1])
     principal_components = pca.fit_transform(x)
     final_df = pd.DataFrame(data=principal_components,
-                            index=[f'PC{num + 1}' for num in range(principal_components.shape[1])],
-                            columns=feature_df.columns)
+                            index=[f'PC {num + 1}' for num in range(principal_components.shape[1])],
+                            columns=feature_df.columns).T
     exp_var_df = pd.DataFrame(data=pca.explained_variance_ratio_,
-                              index=[f'PC{num + 1}' for num in range(n_components)])
+                              index=[f'PC {num + 1}' for num in range(n_components)])
     component_df = pd.DataFrame(data=pca.components_.T,
-                                columns=[f'PC{num + 1}' for num in range(n_components)],
+                                columns=[f'PC {num + 1}' for num in range(n_components)],
                                 index=feature_df.index)
     return final_df, exp_var_df, component_df
 
@@ -62,6 +62,6 @@ def prepare_embedding_dfs(feature_df,
     x = StandardScaler().fit_transform(x.T) if standardize else x.values.T
     X_embedded = REDUCER_DICT[reducer](n_components=n_components, **kwargs).fit_transform(x)
     df = pd.DataFrame(X_embedded,
-                      columns=["embedding {}".format(i) for i in range(1, n_components + 1)],
+                      columns=["{reducer} {i}".format(reducer=reducer.value, i=i) for i in range(1, n_components + 1)],
                       index=sample_names)
-    return df.T
+    return df

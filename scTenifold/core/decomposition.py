@@ -6,6 +6,9 @@ from scTenifold.core.utils import timer
 
 def unfold(X, mode):
     """
+    transform tensor X (R^(I1, I2, I3,..., In)) into X^ (R^(Im, I1 x I2 x ... xIn))
+    which m = mode
+
     Author
     Jean Kossaifi <https://github.com/tensorly>
     """
