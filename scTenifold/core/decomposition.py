@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import scipy
+from scTenifold.core.utils import timer
 
 
 def unfold(X, mode):
@@ -71,7 +72,14 @@ def cp_als(X,
     return Us, est, res_histories
 
 
-def tensor_decomp(networks, gene_names, n_decimal = 1, K = 5, tol = 1e-5, max_iter=1000) -> pd.DataFrame:
+@timer
+def tensor_decomp(networks,
+                  gene_names,
+                  n_decimal = 1,
+                  K = 5,
+                  tol = 1e-5,
+                  max_iter=1000,
+                  **kwargs) -> pd.DataFrame:
     Us, est, res_hist = cp_als(networks, n_components=K, max_iter=max_iter, tol=tol)
     print(est.shape, len(Us), res_hist)
     out = np.sum(est, axis=-1) / len(networks)

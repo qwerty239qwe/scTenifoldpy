@@ -4,9 +4,9 @@ from scipy import stats
 import scipy.sparse.linalg
 from functools import partial
 from tqdm import tqdm
-from sklearn.utils.extmath import randomized_svd
 from warnings import warn
-from scTenifold.core.utils import cal_fdr
+from sklearn.utils.extmath import randomized_svd
+from scTenifold.core.utils import cal_fdr, timer
 
 __all__ = ("make_networks", "manifold_alignment", "d_regulation", "strict_direction")
 
@@ -53,6 +53,7 @@ def pcNet(X: np.ndarray,  # genes x cells
     return A
 
 
+@timer
 def make_networks(data: pd.DataFrame,
                   n_nets: int = 10,
                   n_samp_cells: int = 500,
@@ -60,7 +61,8 @@ def make_networks(data: pd.DataFrame,
                   scale_scores: bool = True,
                   symmetric: bool = False,
                   q: float = 0.95,
-                  random_state: int = 42
+                  random_state: int = 42,
+                  **kwargs
                   ):
     gene_names = data.index.to_numpy()
     n_genes, n_cells = data.shape
@@ -88,10 +90,13 @@ def make_networks(data: pd.DataFrame,
     return networks
 
 
+@timer
 def manifold_alignment(X: pd.DataFrame,
                        Y: pd.DataFrame,
                        d: int = 30,
-                       tol: float = 1e-8):
+                       tol: float = 1e-8,
+                       **kwargs
+                       ):
     shared_genes = list(set(X.index) & set(Y.index))
     X = X.loc[shared_genes, shared_genes]
     Y = Y.loc[shared_genes, shared_genes]
@@ -111,7 +116,8 @@ def manifold_alignment(X: pd.DataFrame,
                         columns=["NLMA_{i}".format(i=i) for i in range(1, 1+d)])
 
 
-def d_regulation(data):
+@timer
+def d_regulation(data, **kwargs):
     all_gene_names = data.index.to_list()
     gene_names = [g[2:] for g in all_gene_names if "X_" == g[:2]]
     assert len(gene_names) * 2 == len(all_gene_names), 'Number of identified and expected genes are not the same'

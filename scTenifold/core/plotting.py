@@ -21,11 +21,11 @@ def plot_network_heatmap(network):
     sns.heatmap(network, center=0.0)
 
 
-def qqplot(df,
-           exp_col="FC",
-           stat_col="adjusted p-value",
-           plot_qqline=True,
-           sig = 0.1):
+def plot_qqplot(df,
+                exp_col="FC",
+                stat_col="adjusted p-value",
+                plot_qqline=True,
+                sig = 0.1):
     the_col = "Theoretical quantiles"
     len_x = df.shape[0]
     data = df.loc[:, [exp_col, stat_col]]
