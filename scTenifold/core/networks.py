@@ -14,11 +14,11 @@ __all__ = ("make_networks", "manifold_alignment", "d_regulation", "strict_direct
 def cal_pc_coefs(k, X, n_comp, random_state=42):
     y = X[:, k]
     Xi = np.delete(X, k, 1)  # cells x (genes - 1)
-    U, Sigma, V = randomized_svd(Xi,
-                                 n_components=n_comp,
-                                 n_iter=5,
-                                 random_state=random_state)
-    coef = V.T  # (genes - 1) x n_comp
+    U, Sigma, VT = randomized_svd(Xi,
+                                  n_components=n_comp,
+                                  n_iter=5,
+                                  random_state=random_state)
+    coef = VT.T  # (genes - 1) x n_comp
     score = Xi.dot(coef)  # cells x n_comp
     score = score / np.expand_dims(np.power(np.sqrt(np.sum(np.power(score, 2), axis=0)), 2), 0)
     betas = coef.dot(np.sum(np.expand_dims(y, 1) * score, axis=0))  # (genes - 1),
@@ -70,9 +70,12 @@ def make_networks(data: pd.DataFrame,
     rng = np.random.default_rng(random_state)
     networks = np.empty((n_genes, n_genes, n_nets), dtype=np.float32)
     for net in tqdm(range(n_nets)):
+
         sample = rng.choice(n_cells, n_samp_cells, replace=False)
         Z = data.iloc[:, sample]
         sel_genes = (Z.sum(axis=1) > 0)
+        assert not any(sel_genes.index.duplicated()), "some genes are duplicated"
+
         Z = Z.loc[sel_genes, :]
         temp_df = pd.DataFrame(columns=gene_names, index=gene_names)
         assert all(Z.sum(axis=1) > 0), "All genes must be expressed in at least one cell"

@@ -25,7 +25,10 @@ class scBase:
         self.ma_kws = {} if ma_kws is None else ma_kws
 
     def _QC(self, label):
-        self.QC_dict[label] = scQC(self.data_dict[label], **self.qc_kws)
+        self.QC_dict[label] = self.data_dict[label].copy()
+        self.QC_dict[label].loc[:, "gene"] = self.QC_dict[label].index
+        self.QC_dict[label] = self.QC_dict[label].groupby(by="gene").sum()
+        self.QC_dict[label] = scQC(self.QC_dict[label], **self.qc_kws)
 
     def _make_networks(self, label, data):
         self.network_dict[label] = make_networks(data, **self.nc_kws)
@@ -57,7 +60,7 @@ class scTenifoldNet(scBase):
             self._norm(label)
             print("finish QC:", label)
 
-        x_gene_names, y_gene_names = set(self.data_dict[self.x_label].index), set(self.data_dict[self.y_label].index)
+        x_gene_names, y_gene_names = set(self.QC_dict[self.x_label].index), set(self.QC_dict[self.y_label].index)
         shared_gene_names = list(x_gene_names & y_gene_names)
 
         for label, qc_data in self.QC_dict.items():

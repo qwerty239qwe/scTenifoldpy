@@ -4,6 +4,80 @@ import scipy
 from scTenifold.core.utils import timer
 
 
+# def randomized_range_finder(A, *, size, n_iter,
+#                             power_iteration_normalizer='auto',
+#                             random_state=None):
+#     """Computes an orthonormal matrix whose range approximates the range of A.
+#     Parameters
+#     ----------
+#     A : 2D array
+#         The input data matrix.
+#     size : int
+#         Size of the return array.
+#     n_iter : int
+#         Number of power iterations used to stabilize the result.
+#     power_iteration_normalizer : {'auto', 'QR', 'LU', 'none'}, default='auto'
+#         Whether the power iterations are normalized with step-by-step
+#         QR factorization (the slowest but most accurate), 'none'
+#         (the fastest but numerically unstable when `n_iter` is large, e.g.
+#         typically 5 or larger), or 'LU' factorization (numerically stable
+#         but can lose slightly in accuracy). The 'auto' mode applies no
+#         normalization if `n_iter` <= 2 and switches to LU otherwise.
+#         .. versionadded:: 0.18
+#     random_state : int, RandomState instance or None, default=None
+#         The seed of the pseudo random number generator to use when shuffling
+#         the data, i.e. getting the random vectors to initialize the algorithm.
+#         Pass an int for reproducible results across multiple function calls.
+#         See :term:`Glossary <random_state>`.
+#     Returns
+#     -------
+#     Q : ndarray
+#         A (size x size) projection matrix, the range of which
+#         approximates well the range of the input matrix A.
+#     Notes
+#     -----
+#     Follows Algorithm 4.3 of
+#     Finding structure with randomness: Stochastic algorithms for constructing
+#     approximate matrix decompositions
+#     Halko, et al., 2009 (arXiv:909) https://arxiv.org/pdf/0909.4061.pdf
+#     An implementation of a randomized algorithm for principal component
+#     analysis
+#     A. Szlam et al. 2014
+#     """
+#     random_state = check_random_state(random_state)
+#
+#     # Generating normal random vectors with shape: (A.shape[1], size)
+#     Q = random_state.normal(size=(A.shape[1], size))
+#     if A.dtype.kind == 'f':
+#         # Ensure f32 is preserved as f32
+#         Q = Q.astype(A.dtype, copy=False)
+#
+#     # Deal with "auto" mode
+#     if power_iteration_normalizer == 'auto':
+#         if n_iter <= 2:
+#             power_iteration_normalizer = 'none'
+#         else:
+#             power_iteration_normalizer = 'LU'
+#
+#     # Perform power iterations with Q to further 'imprint' the top
+#     # singular vectors of A in Q
+#     for i in range(n_iter):
+#         if power_iteration_normalizer == 'none':
+#             Q = safe_sparse_dot(A, Q)
+#             Q = safe_sparse_dot(A.T, Q)
+#         elif power_iteration_normalizer == 'LU':
+#             Q, _ = np.linalg.lu(safe_sparse_dot(A, Q), permute_l=True)
+#             Q, _ = np.linalg.lu(safe_sparse_dot(A.T, Q), permute_l=True)
+#         elif power_iteration_normalizer == 'QR':
+#             Q, _ = np.linalg.qr(safe_sparse_dot(A, Q), mode='economic')
+#             Q, _ = np.linalg.qr(safe_sparse_dot(A.T, Q), mode='economic')
+#
+#     # Sample the range of A using by linear projection of Q
+#     # Extract an orthonormal basis
+#     Q, _ = np.linalg.qr(safe_sparse_dot(A, Q), mode='economic')
+#     return Q
+
+
 def unfold(X, mode):
     """
     transform tensor X (R^(I1, I2, I3,..., In)) into X^ (R^(Im, I1 x I2 x ... xIn))

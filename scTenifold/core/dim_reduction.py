@@ -3,7 +3,7 @@ from sklearn.manifold import TSNE, Isomap, MDS, SpectralEmbedding, LocallyLinear
 import umap
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
-from enum import Enum, auto
+from enum import Enum
 
 
 class Reducer(Enum):
@@ -37,8 +37,8 @@ def prepare_PCA_dfs(feature_df,
         n_components = min(x.shape[0], x.shape[1])
     principal_components = pca.fit_transform(x)
     final_df = pd.DataFrame(data=principal_components,
-                            index=[f'PC {num + 1}' for num in range(principal_components.shape[1])],
-                            columns=feature_df.columns).T
+                            columns=[f'PC {num + 1}' for num in range(principal_components.shape[1])],
+                            index=feature_df.columns)
     exp_var_df = pd.DataFrame(data=pca.explained_variance_ratio_,
                               index=[f'PC {num + 1}' for num in range(n_components)])
     component_df = pd.DataFrame(data=pca.components_.T,
