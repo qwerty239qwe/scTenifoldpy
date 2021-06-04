@@ -12,7 +12,9 @@ def plot_network_graph(network: np.ndarray,
                        con_thres=0):
     network = abs(network.copy())
     network[network < weight_thres] = 0
-    network = network[network.sum(axis=1) != con_thres, network.sum(axis=0) != con_thres]
+    valid_rows, valid_cols = (network.sum(axis=1) > con_thres), (network.sum(axis=0) > con_thres)
+    network = network[valid_rows,:][:, valid_cols]
+    print(network.shape)
     G = nx.from_numpy_array(network)
     pos = nx.kamada_kawai_layout(G)
     fig, ax = plt.subplots(figsize=(8, 8))
@@ -20,11 +22,12 @@ def plot_network_graph(network: np.ndarray,
     nx.draw_networkx_nodes(G, pos,
                            node_size=10,
                            cmap=plt.cm.Reds_r)
-    ax.show()
+    plt.show()
 
 
-def plot_network_heatmap(network):
-    sns.heatmap(network, center=0.0)
+def plot_network_heatmap(network, figsize=(12, 12)):
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(network, center=0.0, ax=ax)
 
 
 def plot_qqplot(df,

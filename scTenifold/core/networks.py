@@ -109,7 +109,7 @@ def manifold_alignment(X: pd.DataFrame,
     W = -np.concatenate((np.concatenate((w_X, w_XY), axis=1),
                          np.concatenate((w_XY.T, w_Y), axis=1)), axis=0)
     np.fill_diagonal(W, 0)
-    np.fill_diagonal(W, -W.sum(axis=1))
+    np.fill_diagonal(W, -W.sum(axis=0))
     eg_vals, eg_vecs = scipy.sparse.linalg.eigs(W, k=d * 2, which="SR")
     print(eg_vecs.shape, eg_vals)
     eg_vecs = eg_vecs[:, eg_vals >= tol]

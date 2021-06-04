@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import scipy
 from scTenifold.core.utils import timer
-
+from tensorly.decomposition import parafac
+import tensorly as tl
 
 # def randomized_range_finder(A, *, size, n_iter,
 #                             power_iteration_normalizer='auto',
@@ -154,11 +155,16 @@ def tensor_decomp(networks,
                   gene_names,
                   n_decimal = 1,
                   K = 5,
-                  tol = 1e-5,
+                  tol = 1e-6,
                   max_iter=1000,
+                  random_state=42,
                   **kwargs) -> pd.DataFrame:
-    Us, est, res_hist = cp_als(networks, n_components=K, max_iter=max_iter, tol=tol)
-    print(est.shape, len(Us), res_hist)
-    out = np.sum(est, axis=-1) / len(networks)
+    # Us, est, res_hist = cp_als(networks, n_components=K, max_iter=max_iter, tol=tol)
+    # print(est.shape, len(Us), res_hist)
+    print("Using tensorly")
+    factors = parafac(networks, rank=K, n_iter_max=max_iter, tol=tol, random_state=random_state)
+    estimate = tl.cp_to_tensor(factors)
+    print(estimate.shape)
+    out = np.sum(estimate, axis=-1) / len(networks)
     out = np.round(out / np.max(abs(out)), n_decimal)
     return pd.DataFrame(out, index=gene_names, columns=gene_names)
