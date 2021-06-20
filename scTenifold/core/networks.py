@@ -70,7 +70,6 @@ def make_networks(data: pd.DataFrame,
     rng = np.random.default_rng(random_state)
     networks = np.empty((n_genes, n_genes, n_nets), dtype=np.float32)
     for net in tqdm(range(n_nets)):
-
         sample = rng.choice(n_cells, n_samp_cells, replace=False)
         Z = data.iloc[:, sample]
         sel_genes = (Z.sum(axis=1) > 0)
