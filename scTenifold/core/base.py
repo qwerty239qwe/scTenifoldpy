@@ -62,7 +62,6 @@ class scTenifoldNet(scBase):
 
         x_gene_names, y_gene_names = set(self.QC_dict[self.x_label].index), set(self.QC_dict[self.y_label].index)
         shared_gene_names = list(x_gene_names & y_gene_names)
-
         for label, qc_data in self.QC_dict.items():
             self._make_networks(label, data=qc_data.loc[shared_gene_names, :])
             self._tensor_decomp(label, shared_gene_names)

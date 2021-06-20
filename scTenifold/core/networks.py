@@ -7,6 +7,7 @@ from tqdm import tqdm
 from warnings import warn
 from sklearn.utils.extmath import randomized_svd
 from scTenifold.core.utils import cal_fdr, timer
+import ray
 
 __all__ = ("make_networks", "manifold_alignment", "d_regulation", "strict_direction")
 
@@ -25,6 +26,7 @@ def cal_pc_coefs(k, X, n_comp, random_state=42):
     return np.expand_dims(betas, 1)
 
 
+@ray.remote
 def pcNet(X: np.ndarray,  # genes x cells
           n_comp: int = 3,
           scale_scores: bool = True,
@@ -69,26 +71,36 @@ def make_networks(data: pd.DataFrame,
     assert not np.array_equal(gene_names, np.array([i for i in range(n_genes)])), 'Gene names are required'
     rng = np.random.default_rng(random_state)
     networks = np.empty((n_genes, n_genes, n_nets), dtype=np.float32)
-    for net in tqdm(range(n_nets)):
+    Z_samples, sel_samples = [], []
+    tasks = []
+    ray.init()
+    for net in range(n_nets):
         sample = rng.choice(n_cells, n_samp_cells, replace=False)
         Z = data.iloc[:, sample]
         sel_genes = (Z.sum(axis=1) > 0)
         assert not any(sel_genes.index.duplicated()), "some genes are duplicated"
+        sel_samples.append(sel_genes)
 
         Z = Z.loc[sel_genes, :]
-        temp_df = pd.DataFrame(columns=gene_names, index=gene_names)
+
         assert all(Z.sum(axis=1) > 0), "All genes must be expressed in at least one cell"
-        temp_df.loc[sel_genes, sel_genes] = pd.DataFrame(pd.DataFrame(pcNet(Z.values,
-                                                                            n_comp=n_comp,
-                                                                            scale_scores=scale_scores,
-                                                                            symmetric=symmetric,
-                                                                            q=q,
-                                                                            random_state=random_state),
-                                                                      index=Z.index,
-                                                                      columns=Z.index),
-                                                         index=sel_genes.index,
-                                                         columns=sel_genes.index)
-        networks[:, :, net] = temp_df.fillna(0.0).values
+        Z_samples.append(Z)
+        tasks.append(pcNet.remote(Z.values,
+                                  n_comp=n_comp,
+                                  scale_scores=scale_scores,
+                                  symmetric=symmetric,
+                                  q=q,
+                                  random_state=random_state))
+    results = ray.get(tasks)
+    for i, pc_net in enumerate(results):
+        temp_df = pd.DataFrame(columns=gene_names, index=gene_names)
+        temp_df.loc[sel_samples[i], sel_samples[i]] = pd.DataFrame(pd.DataFrame(pc_net,
+                                                                                index=Z_samples[i].index,
+                                                                                columns=Z_samples[i].index),
+                                                                   index=sel_samples[i].index,
+                                                                   columns=sel_samples[i].index)
+        networks[:, :, i] = temp_df.fillna(0.0).values
+    ray.shutdown()
     return networks
 
 
