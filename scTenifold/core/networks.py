@@ -1,7 +1,10 @@
+import sys
+import traceback
 import numpy as np
 import pandas as pd
 from scipy import stats
 import scipy.sparse.linalg
+from scipy.sparse import coo_matrix
 from functools import partial
 from tqdm import tqdm
 from warnings import warn
@@ -26,16 +29,27 @@ def cal_pc_coefs(k, X, n_comp, random_state=42):
     return np.expand_dims(betas, 1)
 
 
+def _check_pcNet_inp(data, selected_samples):
+    Z = data.iloc[:, selected_samples]
+    sel_genes = (Z.sum(axis=1) > 0)
+    assert not any(sel_genes.index.duplicated()), "some genes are duplicated"
+    Z = Z.loc[sel_genes, :]
+    assert all(Z.sum(axis=1) > 0), "All genes must be expressed in at least one cell"
+    return Z.values
+
+
 @ray.remote
-def pcNet(X: np.ndarray,  # genes x cells
+def pcNet(data: pd.DataFrame,  # genes x cells
+          selected_samples,
           n_comp: int = 3,
           scale_scores: bool = True,
           symmetric: bool = False,
           q: float = 0.,
           random_state: int = 42):
 
-    assert 2 < n_comp <= X.shape[0]
+    assert 2 < n_comp <= data.shape[0]
     assert 0 <= q <= 1
+    X = _check_pcNet_inp(data, selected_samples)
     Xt = X.T  # cells x genes
     Xt = (Xt - Xt.mean(axis=0)) / Xt.std(axis=0)
     A = 1 - np.eye(Xt.shape[1])  # genes x genes
@@ -70,22 +84,18 @@ def make_networks(data: pd.DataFrame,
     n_genes, n_cells = data.shape
     assert not np.array_equal(gene_names, np.array([i for i in range(n_genes)])), 'Gene names are required'
     rng = np.random.default_rng(random_state)
-    networks = np.empty((n_genes, n_genes, n_nets), dtype=np.float32)
-    Z_samples, sel_samples = [], []
+    networks = []
+    sel_samples = []
     tasks = []
+    if ray.is_initialized():
+        ray.shutdown()
     ray.init()
+    Z_data = ray.put(data)
     for net in range(n_nets):
         sample = rng.choice(n_cells, n_samp_cells, replace=False)
-        Z = data.iloc[:, sample]
-        sel_genes = (Z.sum(axis=1) > 0)
-        assert not any(sel_genes.index.duplicated()), "some genes are duplicated"
-        sel_samples.append(sel_genes)
-
-        Z = Z.loc[sel_genes, :]
-
-        assert all(Z.sum(axis=1) > 0), "All genes must be expressed in at least one cell"
-        Z_samples.append(Z)
-        tasks.append(pcNet.remote(Z.values,
+        sel_samples.append(sample)
+        tasks.append(pcNet.remote(Z_data,
+                                  selected_samples=sample,
                                   n_comp=n_comp,
                                   scale_scores=scale_scores,
                                   symmetric=symmetric,
@@ -93,13 +103,17 @@ def make_networks(data: pd.DataFrame,
                                   random_state=random_state))
     results = ray.get(tasks)
     for i, pc_net in enumerate(results):
+        Z = data.iloc[:, sel_samples[i]]
+        sel_genes = (Z.sum(axis=1) > 0)
+        Z = Z.loc[sel_genes, :]
         temp_df = pd.DataFrame(columns=gene_names, index=gene_names)
-        temp_df.loc[sel_samples[i], sel_samples[i]] = pd.DataFrame(pd.DataFrame(pc_net,
-                                                                                index=Z_samples[i].index,
-                                                                                columns=Z_samples[i].index),
-                                                                   index=sel_samples[i].index,
-                                                                   columns=sel_samples[i].index)
-        networks[:, :, i] = temp_df.fillna(0.0).values
+        temp_df.loc[sel_genes, sel_genes] = pd.DataFrame(pd.DataFrame(pc_net,
+                                                                      index=Z.index,
+                                                                      columns=Z.index),
+                                                         index=sel_genes.index,
+                                                         columns=sel_genes.index)
+        networks.append(coo_matrix(temp_df.fillna(0.0).values))
+
     ray.shutdown()
     return networks
 

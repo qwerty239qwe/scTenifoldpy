@@ -8,3 +8,8 @@ def test_scTenifoldNet():
     sc = scTenifoldNet(df_1, df_2, "X", "Y", qc_kws={"min_lib_size": 1})
     result = sc.build()
     assert isinstance(result, pd.DataFrame)
+
+
+def test_scTenifoldNet_2(control_data, treated_data):
+    sc = scTenifoldNet(control_data, treated_data, "X", "Y")
+    result = sc.build()

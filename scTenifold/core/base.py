@@ -34,7 +34,9 @@ class scBase:
         self.network_dict[label] = make_networks(data, **self.nc_kws)
 
     def _tensor_decomp(self, label, gene_names):
-        self.tensor_dict[label] = tensor_decomp(self.network_dict[label], gene_names, **self.td_kws)
+        self.tensor_dict[label] = tensor_decomp(np.concatenate([np.expand_dims(network.todense(), -1)
+                                                                for network in self.network_dict[label]], axis=-1),
+                                                gene_names, **self.td_kws)
 
 
 class scTenifoldNet(scBase):
@@ -48,31 +50,46 @@ class scTenifoldNet(scBase):
         self.x_label, self.y_label = x_label, y_label
         self.data_dict[x_label] = X
         self.data_dict[y_label] = Y
+        self.shared_gene_names = None
 
     def _norm(self, label):
         self.QC_dict[label] = cpm_norm(self.QC_dict[label])
 
-    def build(self):
+    def run_step(self, step_name):
         start_time = time.perf_counter()
+        if step_name == "qc":
+            for label in self.data_dict:
+                self._QC(label)
+                self._norm(label)
+                print("finish QC:", label)
+        elif step_name == "nc":
+
+            x_gene_names, y_gene_names = set(self.QC_dict[self.x_label].index), set(self.QC_dict[self.y_label].index)
+            self.shared_gene_names = list(x_gene_names & y_gene_names)
+            for label, qc_data in self.QC_dict.items():
+                self._make_networks(label, data=qc_data.loc[self.shared_gene_names, :])
+        elif step_name == "td":
+            for label, qc_data in self.QC_dict.items():
+                self._tensor_decomp(label, self.shared_gene_names)
+            self.tensor_dict[self.x_label] = (self.tensor_dict[self.x_label] + self.tensor_dict[self.x_label].T) / 2
+            self.tensor_dict[self.y_label] = (self.tensor_dict[self.y_label] + self.tensor_dict[self.y_label].T) / 2
+        elif step_name == "ma":
+            self.manifold = manifold_alignment(self.tensor_dict[self.x_label],
+                                               self.tensor_dict[self.y_label],
+                                               **self.ma_kws)
+        elif step_name == "dr":
+            self.d_regulation = d_regulation(self.manifold)
+        else:
+            raise ValueError("")
+
+        print(f"process {step_name} finished in {time.perf_counter() - start_time} secs.")
+
+    def build(self):
         print("performing QC and normalization")
-        for label in self.data_dict:
-            self._QC(label)
-            self._norm(label)
-            print("finish QC:", label)
-
-        x_gene_names, y_gene_names = set(self.QC_dict[self.x_label].index), set(self.QC_dict[self.y_label].index)
-        shared_gene_names = list(x_gene_names & y_gene_names)
-        for label, qc_data in self.QC_dict.items():
-            self._make_networks(label, data=qc_data.loc[shared_gene_names, :])
-            self._tensor_decomp(label, shared_gene_names)
-        self.tensor_dict[self.x_label] = (self.tensor_dict[self.x_label] + self.tensor_dict[self.x_label].T) / 2
-        self.tensor_dict[self.y_label] = (self.tensor_dict[self.y_label] + self.tensor_dict[self.y_label].T) / 2
-        self.manifold = manifold_alignment(self.tensor_dict[self.x_label],
-                                           self.tensor_dict[self.y_label],
-                                           **self.ma_kws)
-
-        self.d_regulation = d_regulation(self.manifold)
-        print(f"process finished in {time.perf_counter() - start_time} secs.")
+        self.run_step("qc")
+        self.run_step("nc")
+        self.run_step("ma")
+        self.run_step("dr")
 
         return self.d_regulation
 

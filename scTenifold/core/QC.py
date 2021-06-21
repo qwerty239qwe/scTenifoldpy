@@ -6,10 +6,12 @@ from warnings import warn
 def scQC(X: pd.DataFrame,
          min_lib_size: float = 1000,
          remove_outlier_cells: bool = True,
-         min_PCT: float = 0.5,
+         min_PCT: float = 0.05,
          max_MT_ratio: float = 0.1):
-    outlier_coef = 1.5
+
     """Emulate scTenifoldNet's func"""
+
+    outlier_coef = 1.5
     X[X < 0] = 0
     lib_size = X.sum(axis=0)
     X = X.loc[:, lib_size > min_lib_size]
