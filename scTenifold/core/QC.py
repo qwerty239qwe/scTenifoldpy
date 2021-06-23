@@ -16,11 +16,13 @@ def scQC(X: pd.DataFrame,
     lib_size = X.sum(axis=0)
     X = X.loc[:, lib_size > min_lib_size]
     if remove_outlier_cells:
+        before_s = X.shape[1]
         medians = lib_size.to_frame().quantile(0.5, axis=0).values[0]
         interquartile_ranges = (lib_size.to_frame().quantile(0.75, axis=0) -
                                lib_size.to_frame().quantile(0.25, axis=0)).values[0]
         X = X.loc[:, (lib_size >= medians - interquartile_ranges * outlier_coef) &
                      (lib_size <= medians + interquartile_ranges * outlier_coef)]
+        print(f"Removed {before_s - X.shape[1]} samples from original data")
     mt_genes = X.index.str.upper().str.match("^MT-")
     if any(mt_genes):
         mt_rates = X[mt_genes].sum(axis=0) / X.sum(axis=0)

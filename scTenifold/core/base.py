@@ -4,6 +4,7 @@ from scTenifold.core.networks import *
 from scTenifold.core.QC import scQC
 from scTenifold.core.normalization import cpm_norm
 from scTenifold.core.decomposition import tensor_decomp
+from scTenifold.core.plotting import plot_hist
 
 
 class scBase:
@@ -29,6 +30,7 @@ class scBase:
         self.QC_dict[label].loc[:, "gene"] = self.QC_dict[label].index
         self.QC_dict[label] = self.QC_dict[label].groupby(by="gene").sum()
         self.QC_dict[label] = scQC(self.QC_dict[label], **self.qc_kws)
+        plot_hist(self.QC_dict[label], label)
 
     def _make_networks(self, label, data):
         self.network_dict[label] = make_networks(data, **self.nc_kws)
@@ -40,6 +42,7 @@ class scBase:
 
 
 class scTenifoldNet(scBase):
+
     def __init__(self, X, Y,
                  x_label, y_label,
                  qc_kws=None,
@@ -51,6 +54,9 @@ class scTenifoldNet(scBase):
         self.data_dict[x_label] = X
         self.data_dict[y_label] = Y
         self.shared_gene_names = None
+
+    def save(self):
+        pass
 
     def _norm(self, label):
         self.QC_dict[label] = cpm_norm(self.QC_dict[label])

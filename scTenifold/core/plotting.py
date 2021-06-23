@@ -1,8 +1,10 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import networkx as nx
 from scipy.stats import chi2
+from typing import Tuple, Optional
 
 from scTenifold.core.dim_reduction import prepare_PCA_dfs, prepare_embedding_dfs
 
@@ -95,4 +97,33 @@ def plot_embedding(df,
     ax.legend()
     ax.grid()
     plt.tight_layout()
+    plt.show()
+
+
+def plot_hist(df_1,
+              df_1_name: str,
+              df_2: Optional[pd.DataFrame] = None,
+              df_2_name: Optional[str] = None,
+              sum_axis: int = 0,
+              label: str = "Sample",
+              figsize: Tuple[int, int] = (10, 8)):
+    fig, ax = plt.subplots(figsize=figsize)
+    df_1 = df_1.copy()
+    df_2 = df_2.copy() if df_2 is not None else None
+    if sum_axis == 0:
+        df_1 = df_1.T
+        df_2 = df_2.T if df_2 is not None else None
+    elif sum_axis != 1:
+        raise ValueError("Passed df should be a 2D df")
+    df_1 = df_1.sum(axis=1).to_frame()
+    df_2 = df_2.sum(axis=1).to_frame() if df_2 is not None else None
+    df_1.columns = [label]
+    df_1["name"] = df_1_name
+    if df_2 is not None:
+        df_2.columns = [label]
+        df_2["name"] = df_2_name
+        df_1 = pd.concat([df_1, df_2])
+        sns.histplot(data=df_1, x=label, hue="name", ax=ax)
+    else:
+        sns.histplot(data=df_1, x=label, ax=ax)
     plt.show()
