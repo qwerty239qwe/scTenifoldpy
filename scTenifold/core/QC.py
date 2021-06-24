@@ -19,14 +19,16 @@ def scQC(X: pd.DataFrame,
         before_s = X.shape[1]
         medians = lib_size.to_frame().quantile(0.5, axis=0).values[0]
         interquartile_ranges = (lib_size.to_frame().quantile(0.75, axis=0) -
-                               lib_size.to_frame().quantile(0.25, axis=0)).values[0]
+                                lib_size.to_frame().quantile(0.25, axis=0)).values[0]
         X = X.loc[:, (lib_size >= medians - interquartile_ranges * outlier_coef) &
                      (lib_size <= medians + interquartile_ranges * outlier_coef)]
-        print(f"Removed {before_s - X.shape[1]} samples from original data")
+        print(f"Removed {before_s - X.shape[1]} outlier samples from original data")
     mt_genes = X.index.str.upper().str.match("^MT-")
     if any(mt_genes):
+        before_s = X.shape[1]
         mt_rates = X[mt_genes].sum(axis=0) / X.sum(axis=0)
         X = X.loc[:, mt_rates < max_MT_ratio]
+        print(f"Removed {before_s - X.shape[1]} samples from original data (mt genes ratio > 0.1)")
     else:
         warn("Mitochondrial genes were not found. Be aware that apoptotic cells may be present in your sample.")
     X = X[X[X != 0].mean(axis=1) > min_PCT]

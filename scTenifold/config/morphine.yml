@@ -1,0 +1,11 @@
+X:
+  name: control
+  mtx_path: ./data/morphineNeurons/mock/control.mtx
+  gene_path: ./data/morphineNeurons/mock/controlGenes.tsv
+  barcodes_path: ./data/morphineNeurons/mock/controlBarcodes.tsv
+
+Y:
+  name: morphine
+  mtx_path: ./data/morphineNeurons/morphine/morphine.mtx
+  gene_path: ./data/morphineNeurons/morphine/morphineGenes.tsv
+  barcodes_path: ./data/morphineNeurons/morphine/morphineBarcodes.tsv

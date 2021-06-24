@@ -102,6 +102,7 @@ def make_networks(data: pd.DataFrame,
                                   q=q,
                                   random_state=random_state))
     results = ray.get(tasks)
+    del Z_data
     for i, pc_net in enumerate(results):
         Z = data.iloc[:, sel_samples[i]]
         sel_genes = (Z.sum(axis=1) > 0)
@@ -114,6 +115,7 @@ def make_networks(data: pd.DataFrame,
                                                          columns=sel_genes.index)
         networks.append(coo_matrix(temp_df.fillna(0.0).values))
 
+    del results
     ray.shutdown()
     return networks
 

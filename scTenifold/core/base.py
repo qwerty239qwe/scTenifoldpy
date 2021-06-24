@@ -69,7 +69,6 @@ class scTenifoldNet(scBase):
                 self._norm(label)
                 print("finish QC:", label)
         elif step_name == "nc":
-
             x_gene_names, y_gene_names = set(self.QC_dict[self.x_label].index), set(self.QC_dict[self.y_label].index)
             self.shared_gene_names = list(x_gene_names & y_gene_names)
             for label, qc_data in self.QC_dict.items():
