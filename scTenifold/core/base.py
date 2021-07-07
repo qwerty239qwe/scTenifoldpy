@@ -93,6 +93,7 @@ class scTenifoldNet(scBase):
         print("performing QC and normalization")
         self.run_step("qc")
         self.run_step("nc")
+        self.run_step("td")
         self.run_step("ma")
         self.run_step("dr")
 
