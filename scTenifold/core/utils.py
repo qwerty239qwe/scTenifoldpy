@@ -63,7 +63,7 @@ def _build_matrix_from_sparse(sparse_data, shape):
         r, c, d = data_row.strip().split(" ")
         row.append(int(r) - 1)
         col.append(int(c) - 1)
-        data.append(int(d) - 1)
+        data.append(int(d))
     return csr_matrix((data, (row, col)), shape=shape).toarray()
 
 
