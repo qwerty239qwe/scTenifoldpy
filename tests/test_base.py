@@ -10,6 +10,7 @@ def test_scTenifoldNet():
     assert isinstance(result, pd.DataFrame)
 
 
-def test_scTenifoldNet_2(control_data, treated_data):
-    sc = scTenifoldNet(control_data, treated_data, "X", "Y")
-    result = sc.build()
+# data not uploaded yet
+# def test_scTenifoldNet_2(control_data, treated_data):
+#     sc = scTenifoldNet(control_data, treated_data, "X", "Y")
+#     result = sc.build()
