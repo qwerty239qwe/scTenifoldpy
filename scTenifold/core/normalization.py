@@ -2,4 +2,4 @@ import pandas as pd
 
 
 def cpm_norm(X):
-    return X / X.sum(axis=0)
+    return X * 1e6 / X.sum(axis=0)
