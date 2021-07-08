@@ -9,19 +9,31 @@ from functools import partial
 from tqdm import tqdm
 from warnings import warn
 from sklearn.utils.extmath import randomized_svd
+
+import dask
+import dask.array as da
 from scTenifold.core.utils import cal_fdr, timer
 import ray
 
 __all__ = ("make_networks", "manifold_alignment", "d_regulation", "strict_direction")
 
 
-def cal_pc_coefs(k, X, n_comp, random_state=42):
+def cal_pc_coefs(k, X, n_comp, method="sklearn", random_state=42):
     y = X[:, k]
     Xi = np.delete(X, k, 1)  # cells x (genes - 1)
-    U, Sigma, VT = randomized_svd(Xi,
-                                  n_components=n_comp,
-                                  n_iter=5,
-                                  random_state=random_state)
+
+    if method == "sklearn":
+        U, Sigma, VT = randomized_svd(Xi,
+                                      n_components=n_comp,
+                                      n_iter=15,
+                                      random_state=random_state)
+    elif method == "dask":
+        U, Sigma, VT = da.linalg.svd_compressed(da.from_array(Xi), k=n_comp)
+        VT = VT.compute()
+    elif method == "scipy":
+        U, Sigma, VT = scipy.linalg.svd(Xi, False)
+    else:
+        raise ValueError("Invalid method")
     coef = VT.T  # (genes - 1) x n_comp
     score = Xi.dot(coef)  # cells x n_comp
     score = score / np.expand_dims(np.power(np.sqrt(np.sum(np.power(score, 2), axis=0)), 2), 0)
@@ -90,9 +102,10 @@ def make_networks(data: pd.DataFrame,
     if ray.is_initialized():
         ray.shutdown()
     ray.init()
+    # dask.config.set(scheduler=ray_dask_get)
     Z_data = ray.put(data)
     for net in range(n_nets):
-        sample = rng.choice(n_cells, n_samp_cells, replace=False)
+        sample = rng.choice(n_cells, n_samp_cells, replace=True)
         sel_samples.append(sample)
         tasks.append(pcNet.remote(Z_data,
                                   selected_samples=sample,
