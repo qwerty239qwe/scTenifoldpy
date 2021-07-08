@@ -1,17 +1,15 @@
-import sys
-import traceback
 import numpy as np
 import pandas as pd
 from scipy import stats
 import scipy.sparse.linalg
 from scipy.sparse import coo_matrix
 from functools import partial
-from tqdm import tqdm
+
 from warnings import warn
 from sklearn.utils.extmath import randomized_svd
 
-import dask
-import dask.array as da
+# import dask
+# import dask.array as da
 from scTenifold.core.utils import cal_fdr, timer
 import ray
 
@@ -25,11 +23,12 @@ def cal_pc_coefs(k, X, n_comp, method="sklearn", random_state=42):
     if method == "sklearn":
         U, Sigma, VT = randomized_svd(Xi,
                                       n_components=n_comp,
+                                      flip_sign=True,  # to yield deterministic outputs
                                       n_iter=15,
                                       random_state=random_state)
-    elif method == "dask":
-        U, Sigma, VT = da.linalg.svd_compressed(da.from_array(Xi), k=n_comp)
-        VT = VT.compute()
+    # elif method == "dask":
+        # U, Sigma, VT = da.linalg.svd_compressed(da.from_array(Xi), k=n_comp)
+        # VT = VT.compute()
     elif method == "scipy":
         U, Sigma, VT = scipy.linalg.svd(Xi, False)
     else:
@@ -65,7 +64,6 @@ def pcNet(data: pd.DataFrame,  # genes x cells
     Xt = X.T  # cells x genes
     Xt = (Xt - Xt.mean(axis=0)) / Xt.std(axis=0)
     A = 1 - np.eye(Xt.shape[1])  # genes x genes
-
     p_ = partial(cal_pc_coefs, X=Xt, n_comp=n_comp, random_state=random_state)
     bs = [p_(i) for i in range(Xt.shape[1])]
     B = np.concatenate(bs, axis=1).T  # beta matrix ((genes - 1), genes)
