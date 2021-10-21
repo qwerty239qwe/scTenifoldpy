@@ -7,6 +7,9 @@ from scTenifold.core.decomposition import tensor_decomp
 from scTenifold.core.plotting import plot_hist
 
 
+__all__ = ("scTenifoldNet", "scTenifoldKnk")
+
+
 class scBase:
     def __init__(self,
                  qc_kws=None,
@@ -100,18 +103,60 @@ class scTenifoldNet(scBase):
         return self.d_regulation
 
 
+def ko_propagation(B, x, ko_gene_id, degree):
+    adj_mat = B.copy()
+    np.fill_diagonal(adj_mat, 0)
+    x_ko = x.copy()
+    p = np.zeros(shape=x.shape)
+    p[ko_gene_id, :] = x[ko_gene_id, :]
+    perturbs = [p]
+    is_visited = np.array([False for _ in range(x_ko.shape[0])])
+    for d in range(degree):
+        if not is_visited.all():
+            perturbs.append(adj_mat @ perturbs[d])
+            new_visited = (perturbs[d+1] != 0).any(axis=1)
+            adj_mat[is_visited, :] = 0
+            adj_mat[:, is_visited] = 0
+            is_visited = is_visited | new_visited
+
+    for p in perturbs:
+        x_ko = x_ko - p
+    return np.where(x_ko >= 0, x_ko, 0)
+
+
 class scTenifoldKnk(scBase):
-    def __init__(self, data,
+    def __init__(self,
+                 data,
                  strict_lambda=0,
+                 ko_method="default",
                  ko_genes=None,
                  qc_kws=None,
                  nc_kws=None,
                  td_kws=None,
-                 ma_kws=None):
+                 ma_kws=None,
+                 ko_kws=None):
         super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws)
         self.data_dict["WT"] = data
         self.strict_lambda = strict_lambda
         self.ko_genes = ko_genes if ko_genes is not None else []
+        self.ko_method = ko_method
+        self.ko_kws = ko_kws
+
+    def _get_ko_tensor(self):
+        if self.ko_method == "default":
+            self.tensor_dict["KO"] = self.tensor_dict["WT"].copy()
+            self.tensor_dict["KO"].loc[self.ko_genes, :] = 0
+        elif self.ko_method == "propagation":
+            self.QC_dict["KO"] = ko_propagation(self.network_dict["WT"],
+                                                self.QC_dict["WT"],
+                                                ko_gene_id=self.ko_genes,
+                                                **self.ko_kws)
+            self._make_networks("KO", self.QC_dict["KO"])
+            self._tensor_decomp("KO", self.QC_dict["KO"].index.to_list())
+            self.tensor_dict["KO"] = strict_direction(self.tensor_dict["KO"], self.strict_lambda).T
+            np.fill_diagonal(self.tensor_dict["KO"], 0)
+        else:
+            ValueError("No such method")
 
     def build(self):
         self._QC("WT")
@@ -123,8 +168,7 @@ class scTenifoldKnk(scBase):
         self._tensor_decomp("WT", self.QC_dict["WT"].index.to_list())
         self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T
         np.fill_diagonal(self.tensor_dict["WT"], 0)
-        self.tensor_dict["KO"] = self.tensor_dict["WT"].copy()
-        self.tensor_dict["KO"].loc[self.ko_genes, :] = 0
+        self._get_ko_tensor()
         self.manifold = manifold_alignment(self.tensor_dict["WT"], self.tensor_dict["KO"], **self.ma_kws)
         self.d_regulation = d_regulation(self.manifold)
         return self.d_regulation
