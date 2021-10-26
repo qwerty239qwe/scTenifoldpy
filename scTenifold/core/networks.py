@@ -24,17 +24,17 @@ def cal_pc_coefs(k, X, n_comp, method="sklearn", random_state=42):
         U, Sigma, VT = randomized_svd(Xi,
                                       n_components=n_comp,
                                       flip_sign=True,  # to yield deterministic outputs
-                                      n_iter=15,
+                                      n_iter=20,
                                       random_state=random_state)
     # elif method == "dask":
         # U, Sigma, VT = da.linalg.svd_compressed(da.from_array(Xi), k=n_comp)
         # VT = VT.compute()
     elif method == "scipy":
-        U, Sigma, VT = scipy.linalg.svd(Xi, False)
+        U, Sigma, VT = scipy.linalg.svd(Xi, False, lapack_driver="gesvd")
     else:
         raise ValueError("Invalid method")
-    coef = VT.T  # (genes - 1) x n_comp
-    score = Xi.dot(coef)  # cells x n_comp
+    coef = VT[:n_comp, :].T  # (genes - 1) x n_comp
+    score = Xi @ coef  # cells x n_comp
     score = score / np.expand_dims(np.power(np.sqrt(np.sum(np.power(score, 2), axis=0)), 2), 0)
     betas = coef.dot(np.sum(np.expand_dims(y, 1) * score, axis=0))  # (genes - 1),
     return np.expand_dims(betas, 1)
