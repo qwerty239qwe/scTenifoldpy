@@ -154,7 +154,7 @@ class scTenifoldKnk(scBase):
             self._make_networks("KO", self.QC_dict["KO"])
             self._tensor_decomp("KO", self.QC_dict["KO"].index.to_list())
             self.tensor_dict["KO"] = strict_direction(self.tensor_dict["KO"], self.strict_lambda).T
-            np.fill_diagonal(self.tensor_dict["KO"], 0)
+            np.fill_diagonal(self.tensor_dict["KO"].values, 0)
         else:
             ValueError("No such method")
 
@@ -167,7 +167,7 @@ class scTenifoldKnk(scBase):
         self._make_networks("WT", self.QC_dict["WT"])
         self._tensor_decomp("WT", self.QC_dict["WT"].index.to_list())
         self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T
-        np.fill_diagonal(self.tensor_dict["WT"], 0)
+        np.fill_diagonal(self.tensor_dict["WT"].values, 0)
         self._get_ko_tensor()
         self.manifold = manifold_alignment(self.tensor_dict["WT"], self.tensor_dict["KO"], **self.ma_kws)
         self.d_regulation = d_regulation(self.manifold)

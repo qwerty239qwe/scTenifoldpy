@@ -4,14 +4,14 @@ from scTenifold.core.base import scTenifoldNet, scTenifoldKnk
 
 
 def test_scTenifoldNet():
-    df_1, df_2 = get_test_df(n_cells=1000), get_test_df(n_cells=1000)
+    df_1, df_2 = get_test_df(n_cells=100), get_test_df(n_cells=100)
     sc = scTenifoldNet(df_1, df_2, "X", "Y", qc_kws={"min_lib_size": 10})
     result = sc.build()
     assert isinstance(result, pd.DataFrame)
 
 
 def test_scTenifoldKnk_method1():
-    df = get_test_df(n_cells=1000)
+    df = get_test_df(n_cells=100)
     sc = scTenifoldKnk(data=df,
                        ko_genes=["NG-1"],  # the gene you wants to knock out
                        qc_kws={"min_lib_size": 10})
