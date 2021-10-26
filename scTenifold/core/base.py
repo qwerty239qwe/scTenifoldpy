@@ -149,7 +149,7 @@ class scTenifoldKnk(scBase):
         elif self.ko_method == "propagation":
             self.QC_dict["KO"] = ko_propagation(self.network_dict["WT"],
                                                 self.QC_dict["WT"],
-                                                ko_gene_id=self.ko_genes,
+                                                ko_gene_id=[self.QC_dict["WT"].index.get_loc(i) for i in self.ko_genes],
                                                 **self.ko_kws)
             self._make_networks("KO", self.QC_dict["KO"])
             self._tensor_decomp("KO", self.QC_dict["KO"].index.to_list())
