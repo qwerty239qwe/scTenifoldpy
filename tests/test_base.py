@@ -1,4 +1,6 @@
 import pandas as pd
+import pytest
+
 from scTenifold.core.utils import get_test_df
 from scTenifold.core.base import scTenifoldNet, scTenifoldKnk
 
@@ -19,12 +21,14 @@ def test_scTenifoldKnk_method1():
     assert isinstance(result, pd.DataFrame)
 
 
+@pytest.mark.test
 def test_scTenifoldKnk_method2():
-    df = get_test_df(n_cells=100)
+    df = get_test_df(n_genes=100, n_cells=100)
     sc = scTenifoldKnk(data=df,
                        ko_method="propagation",
                        ko_genes=["NG-1"],  # the gene you wants to knock out
-                       qc_kws={"min_lib_size": 10})
+                       qc_kws={"min_lib_size": 10, "min_PCT": 0.001},
+                       ko_kws={"degree": 10})
     result = sc.build()
     assert isinstance(result, pd.DataFrame)
 

@@ -125,7 +125,6 @@ def make_networks(data: pd.DataFrame,
                                                          index=sel_genes.index,
                                                          columns=sel_genes.index)
         networks.append(coo_matrix(temp_df.fillna(0.0).values))
-
     del results
     ray.shutdown()
     return networks

@@ -15,7 +15,7 @@ def scQC(X: pd.DataFrame,
     lib_size = X.sum(axis=0)
     before_s = X.shape[1]
     X = X.loc[:, lib_size > min_lib_size]
-    print(f"Removed {before_s - X.shape[1]} samples with lib size < {min_lib_size}")
+    print(f"Removed {before_s - X.shape[1]} cells with lib size < {min_lib_size}")
     if remove_outlier_cells:
         lib_size = X.sum(axis=0)
         before_s = X.shape[1]
@@ -24,14 +24,12 @@ def scQC(X: pd.DataFrame,
         interquartile_range = Q3 - Q1
         X = X.loc[:, (lib_size >= Q1 - interquartile_range * outlier_coef) &
                      (lib_size <= Q3 + interquartile_range * outlier_coef)]
-        print(f"Removed {before_s - X.shape[1]} outlier samples from original data")
+        print(f"Removed {before_s - X.shape[1]} outlier cells from original data")
     mt_genes = X.index.str.upper().str.match("^MT-")
     if any(mt_genes):
         print(f"Found mitochondrial genes: {X[mt_genes].index.to_list()}")
         before_s = X.shape[1]
         mt_rates = X[mt_genes].sum(axis=0) / X.sum(axis=0)
-        print(mt_rates)
-
         X = X.loc[:, mt_rates < max_MT_ratio]
         print(f"Removed {before_s - X.shape[1]} samples from original data (mt genes ratio > {max_MT_ratio})")
     else:

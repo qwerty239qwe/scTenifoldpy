@@ -1,5 +1,10 @@
-import numpy as np
 import time
+from typing import List
+
+import numpy as np
+import pandas as pd
+from scipy.sparse import coo_matrix
+
 from scTenifold.core.networks import *
 from scTenifold.core.QC import scQC
 from scTenifold.core.normalization import cpm_norm
@@ -39,7 +44,7 @@ class scBase:
         self.network_dict[label] = make_networks(data, **self.nc_kws)
 
     def _tensor_decomp(self, label, gene_names):
-        self.tensor_dict[label] = tensor_decomp(np.concatenate([np.expand_dims(network.todense(), -1)
+        self.tensor_dict[label] = tensor_decomp(np.concatenate([np.expand_dims(network.toarray(), -1)
                                                                 for network in self.network_dict[label]], axis=-1),
                                                 gene_names, **self.td_kws)
 
@@ -124,6 +129,17 @@ def ko_propagation(B, x, ko_gene_id, degree):
     return np.where(x_ko >= 0, x_ko, 0)
 
 
+def reconstruct_pcnets(nets: List[coo_matrix],
+                       X_df, ko_gene_id, degree, **kwargs):
+    ko_nets = []
+    for net in nets:
+        data = ko_propagation(net.toarray(), X_df.values, ko_gene_id, degree)
+        data = pd.DataFrame(data, index=X_df.index, columns=X_df.columns)
+        ko_net = make_networks(data, n_nets=1, **kwargs)[0]
+        ko_nets.append(ko_net)
+    return ko_nets
+
+
 class scTenifoldKnk(scBase):
     def __init__(self,
                  data,
@@ -140,19 +156,21 @@ class scTenifoldKnk(scBase):
         self.strict_lambda = strict_lambda
         self.ko_genes = ko_genes if ko_genes is not None else []
         self.ko_method = ko_method
-        self.ko_kws = ko_kws
+        self.ko_kws = {} if ko_kws is None else ko_kws
 
     def _get_ko_tensor(self):
         if self.ko_method == "default":
             self.tensor_dict["KO"] = self.tensor_dict["WT"].copy()
             self.tensor_dict["KO"].loc[self.ko_genes, :] = 0
         elif self.ko_method == "propagation":
-            self.QC_dict["KO"] = ko_propagation(self.network_dict["WT"],
-                                                self.QC_dict["WT"],
-                                                ko_gene_id=[self.QC_dict["WT"].index.get_loc(i) for i in self.ko_genes],
-                                                **self.ko_kws)
-            self._make_networks("KO", self.QC_dict["KO"])
-            self._tensor_decomp("KO", self.QC_dict["KO"].index.to_list())
+            print(self.QC_dict["WT"].index)
+            self.network_dict["KO"] = reconstruct_pcnets(self.network_dict["WT"],
+                                                         self.QC_dict["WT"],
+                                                         ko_gene_id=[self.QC_dict["WT"].index.get_loc(i)
+                                                                     for i in self.ko_genes],
+                                                         degree=self.ko_kws.get("degree"),
+                                                         **self.nc_kws)
+            self._tensor_decomp("KO", self.shared_gene_names)
             self.tensor_dict["KO"] = strict_direction(self.tensor_dict["KO"], self.strict_lambda).T
             np.fill_diagonal(self.tensor_dict["KO"].values, 0)
         else:
@@ -163,9 +181,10 @@ class scTenifoldKnk(scBase):
         if self.QC_dict["WT"].shape[1] > 500:
             self.QC_dict["WT"] = self.QC_dict["WT"].loc[self.QC_dict["WT"].mean(axis=1) >= 0.05, :]
         else:
-            self.QC_dict["WT"] = self.QC_dict["WT"].loc[self.QC_dict["WT"].sum(axis=1) >= 25, :]
+            self.QC_dict["WT"] = self.QC_dict["WT"].loc[self.QC_dict["WT"].sum(axis=1) >= 5, :]
         self._make_networks("WT", self.QC_dict["WT"])
-        self._tensor_decomp("WT", self.QC_dict["WT"].index.to_list())
+        self.shared_gene_names = self.QC_dict["WT"].index.to_list()
+        self._tensor_decomp("WT", self.shared_gene_names)
         self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T
         np.fill_diagonal(self.tensor_dict["WT"].values, 0)
         self._get_ko_tensor()
