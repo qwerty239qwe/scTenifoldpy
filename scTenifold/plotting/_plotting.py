@@ -11,7 +11,22 @@ from scTenifold.plotting._dim_reduction import *
 
 def plot_network_graph(network: np.ndarray,
                        weight_thres=0.1,
-                       con_thres=0):
+                       con_thres=0) -> None:
+    """
+    Plot graph of a PCnet
+
+    Parameters
+    ----------
+    network: np.ndarray
+        A pc net
+    weight_thres: float
+        Minimum threshold of the pcnet's weights
+    con_thres: float or int
+        Minimum threshold of sum of weights
+    Returns
+    -------
+    None
+    """
     network = abs(network.copy())
     network[network < weight_thres] = 0
     valid_rows, valid_cols = (network.sum(axis=1) > con_thres), (network.sum(axis=0) > con_thres)
@@ -27,7 +42,21 @@ def plot_network_graph(network: np.ndarray,
     plt.show()
 
 
-def plot_network_heatmap(network, figsize=(12, 12)):
+def plot_network_heatmap(network: np.ndarray,
+                         figsize=(12, 12)) -> None:
+    """
+    Plot a heatmap of a PC network
+
+    Parameters
+    ----------
+    network: np.ndarray
+        A pcnet
+    figsize: tuple of ints
+        output figure size
+    Returns
+    -------
+    None
+    """
     fig, ax = plt.subplots(figsize=figsize)
     sns.heatmap(network, center=0.0, ax=ax)
 
@@ -38,7 +67,7 @@ def plot_qqplot(df,
                 plot_qqline: bool = True,
                 sig_threshold: float = 0.1) -> None:
     """
-    Plot QQ-plot using a
+    Plot QQ-plot using a d_regulation dataframe
 
     Parameters
     ----------
@@ -83,6 +112,26 @@ def plot_embedding(df,
                    title: str = None,
                    palette: str = "muted",
                    **kwargs):
+    """
+    Do dimension reduction and plot the embeddings onto a 2D plot
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        A dataframe to perform dimension reduction
+    groups: dict(str, list)
+        A dict indicating the groups
+    method
+    plot_2D
+    figsize
+    title
+    palette
+    kwargs
+
+    Returns
+    -------
+
+    """
     colors = sns.color_palette(palette)
     fig, ax = plt.subplots(figsize=figsize)
     if method == "PCA":
@@ -126,6 +175,22 @@ def plot_hist(df_1,
               sum_axis: int = 0,
               label: str = "Sample",
               figsize: Tuple[int, int] = (10, 8)):
+    """
+
+    Parameters
+    ----------
+    df_1
+    df_1_name
+    df_2
+    df_2_name
+    sum_axis
+    label
+    figsize
+
+    Returns
+    -------
+
+    """
     fig, ax = plt.subplots(figsize=figsize)
     df_1 = df_1.copy()
     df_2 = df_2.copy() if df_2 is not None else None

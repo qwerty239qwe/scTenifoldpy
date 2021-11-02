@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Sequence
+from typing import Optional, Dict, List
 import argparse
 from pathlib import Path
 
@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from scanpy.tools import score_genes
 
-from scTenifold.cell_cycle.utils import *
+from scTenifold.data._sim import *
 
 
 def adobo_score(X,
@@ -128,11 +128,11 @@ if __name__ == '__main__':
 
     output_dir = Path(args.output_path)
     output_dir.mkdir(parents=True, exist_ok=True)
-    data_obj = TestData(n_genes=args.genes,
-                        n_samples=args.samples,
-                        n_bins=args.bins,
-                        n_ctrl=args.ctrls,
-                        random_state=args.random_state)
+    data_obj = TestDataGenerator(n_genes=args.genes,
+                                 n_samples=args.samples,
+                                 n_bins=args.bins,
+                                 n_ctrl=args.ctrls,
+                                 random_state=args.random_state)
     data_obj.save_data(output_dir / Path("test_data.csv"), use_normalized=True)
     np_data = data_obj.get_data("numpy", True)
     np_data["file_path"] = output_dir / Path("cell_scores.csv")

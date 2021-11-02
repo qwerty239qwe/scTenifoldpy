@@ -5,8 +5,6 @@ from typing import Optional, List
 import pandas as pd
 import numpy as np
 
-from scTenifold.cell_cycle.utils import *
-
 
 def _check_features(df,
                     features):
@@ -52,12 +50,12 @@ def calc_U_stat_df(features,
     return diff
 
 
-def calc_Uscore(X: pd.DataFrame,
-                pos_genes,
-                neg_genes,
-                max_rank=1500,
-                w_neg=1,
-                ties_method="average"):
+def cal_Uscore(X: pd.DataFrame,
+               pos_genes,
+               neg_genes,
+               max_rank=1500,
+               w_neg=1,
+               ties_method="average"):
     ranked_df = X.rank(ascending=False, method=ties_method)
     pos_genes = _check_features(X, pos_genes)
     cell_auc = calc_U_stat_df(pos_genes, ranked_df,

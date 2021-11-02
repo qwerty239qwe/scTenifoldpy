@@ -17,6 +17,7 @@ __all__ = ["make_networks", "cal_pcNet", "cal_pc_coefs", "manifold_alignment", "
 
 
 def cal_pc_coefs(k, X, n_comp, method="sklearn", random_state=42):
+
     y = X[:, k]
     Xi = np.delete(X, k, 1)  # cells x (genes - 1)
 
