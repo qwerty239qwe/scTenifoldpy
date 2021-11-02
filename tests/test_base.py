@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-from scTenifold.core._utils import get_test_df
-from scTenifold.core._base import scTenifoldNet, scTenifoldKnk
+from scTenifold.data import get_test_df
+from scTenifold import scTenifoldNet, scTenifoldKnk
 
 
 def test_scTenifoldNet():

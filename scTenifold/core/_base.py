@@ -220,20 +220,66 @@ class scTenifoldKnk(scBase):
     def run_step(self,
                  step_name: str,
                  **kwargs):
-        pass
+        """
+        Run a single step of scTenifoldKnk
+
+        Parameters
+        ----------
+        step_name: str
+            The name of step to be run, possible steps:
+            1. qc: Quality control
+            2. nc: Network construction (PCNet)
+            3. td: Tensor decomposition
+            4. ko: Virtual knock out
+            5. ma: Manifold alignment
+            6. dr: Differential regulation evaluation
+        **kwargs
+            Keyword arguments for the step, if None then use stored kws in this object.
+
+        Returns
+        -------
+        None
+        """
+        start_time = time.perf_counter()
+        if step_name == "qc":
+            if "min_exp_avg" not in self.qc_kws:
+                self.qc_kws["min_exp_avg"] = 0.05
+            if "min_exp_sum" not in self.qc_kws:
+                self.qc_kws["min_exp_sum"] = 25
+            self._QC("WT")
+            # no norm
+            print("finish QC: WT")
+        elif step_name == "nc":
+            self._make_networks("WT", self.QC_dict["WT"], **self.nc_kws)
+            self.shared_gene_names = self.QC_dict["WT"].index.to_list()
+        elif step_name == "td":
+            self._tensor_decomp("WT", self.shared_gene_names)
+            self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T
+        elif step_name == "ko":
+            np.fill_diagonal(self.tensor_dict["WT"].values, 0)
+            self._get_ko_tensor()
+        elif step_name == "ma":
+            self.manifold = manifold_alignment(self.tensor_dict["WT"],
+                                               self.tensor_dict["KO"],
+                                               **self.ma_kws)
+        elif step_name == "dr":
+            self.d_regulation = d_regulation(self.manifold)
+        else:
+            raise ValueError("No such step")
+        print(f"process {step_name} finished in {time.perf_counter() - start_time} secs.")
 
     def build(self):
-        self._QC("WT")
-        if self.QC_dict["WT"].shape[1] > 500:
-            self.QC_dict["WT"] = self.QC_dict["WT"].loc[self.QC_dict["WT"].mean(axis=1) >= 0.05, :]
-        else:
-            self.QC_dict["WT"] = self.QC_dict["WT"].loc[self.QC_dict["WT"].sum(axis=1) >= 5, :]
-        self._make_networks("WT", self.QC_dict["WT"], **self.nc_kws)
-        self.shared_gene_names = self.QC_dict["WT"].index.to_list()
-        self._tensor_decomp("WT", self.shared_gene_names)
-        self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T
-        np.fill_diagonal(self.tensor_dict["WT"].values, 0)
-        self._get_ko_tensor()
-        self.manifold = manifold_alignment(self.tensor_dict["WT"], self.tensor_dict["KO"], **self.ma_kws)
-        self.d_regulation = d_regulation(self.manifold)
+        """
+        Run the whole pipeline of scTenifoldKnk
+
+        Returns
+        -------
+        d_regulation_df: pd.DataFrame
+            Differential regulation result dataframe
+        """
+        self.run_step("qc")
+        self.run_step("nc")
+        self.run_step("td")
+        self.run_step("ma")
+        self.run_step("dr")
         return self.d_regulation

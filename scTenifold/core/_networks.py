@@ -1,21 +1,19 @@
 from functools import partial
 from warnings import warn
-from typing import List
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
 from scipy import stats
-import scipy.sparse.linalg
 from scipy.sparse import coo_matrix
+import scipy.sparse.linalg
 from sklearn.utils.extmath import randomized_svd
 import ray
 
-# import dask
-# import dask.array as da
 from scTenifold.core._utils import cal_fdr, timer
 
 
-__all__ = ["make_networks", "manifold_alignment", "d_regulation", "strict_direction"]
+__all__ = ["make_networks", "cal_pcNet", "cal_pc_coefs", "manifold_alignment", "d_regulation", "strict_direction"]
 
 
 def cal_pc_coefs(k, X, n_comp, method="sklearn", random_state=42):
@@ -84,7 +82,7 @@ def pcNet(data: pd.DataFrame,  # genes x cells
 @timer
 def make_networks(data: pd.DataFrame,
                   n_nets: int = 10,
-                  n_samp_cells: int = 500,
+                  n_samp_cells: Optional[int] = 500,
                   n_comp: int = 3,
                   scale_scores: bool = True,
                   symmetric: bool = False,
@@ -101,8 +99,8 @@ def make_networks(data: pd.DataFrame,
         Input dataframe
     n_nets: int, default = 10
         Number of subsampling times
-    n_samp_cells: int, default = 500
-        Number of subsampled cells
+    n_samp_cells: int, None, default = 500
+        Number of sampled cells, if None than select all cells
     n_comp: int, default = 3
         Number of PCNets composition
     scale_scores: bool, default = True
@@ -134,7 +132,7 @@ def make_networks(data: pd.DataFrame,
     # dask.config.set(scheduler=ray_dask_get)
     Z_data = ray.put(data)
     for net in range(n_nets):
-        sample = rng.choice(n_cells, n_samp_cells, replace=True)
+        sample = rng.choice(n_cells, n_samp_cells, replace=True) if n_samp_cells is not None else np.arange(n_cells)
         sel_samples.append(sample)
         tasks.append(pcNet.remote(Z_data,
                                   selected_samples=sample,
@@ -162,12 +160,78 @@ def make_networks(data: pd.DataFrame,
 
 
 @timer
+def cal_pcNet(data: pd.DataFrame,
+              n_comp: int = 3,
+              scale_scores: bool = True,
+              symmetric: bool = False,
+              q: float = 0.95,
+              random_state: int = 42,
+              **kwargs
+              ) -> coo_matrix:
+    """
+    Calculate one pcNet without sampling. An API for getting one PCNet instead of many.
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+        Input dataframe
+    n_comp: int, default = 3
+        Number of PCNets composition
+    scale_scores: bool, default = True
+        To scale the final PCNets scores or not
+    symmetric: bool, default = False
+        To make the final PCNets symmetric or not
+    q: float, default = 0.95
+        The quantile value used to determine PCNet's threshold
+    random_state: int, default = 42
+        Random seed of constructing PCNets
+    kwargs
+        Keyword arguments
+
+    Returns
+    -------
+    pcNet: coo_matrix
+    Result network
+
+    See Also
+    --------
+    make_networks
+
+    """
+    return make_networks(data,
+                         n_nets=1,
+                         n_samp_cells=None,
+                         n_comp=n_comp,
+                         scale_scores=scale_scores,
+                         symmetric=symmetric, q=q,
+                         random_state=random_state, **kwargs)[0]
+
+
+@timer
 def manifold_alignment(X: pd.DataFrame,
                        Y: pd.DataFrame,
                        d: int = 30,
                        tol: float = 1e-8,
                        **kwargs
-                       ):
+                       ) -> pd.DataFrame:
+    """
+    Performing manifold alignment on two dataframes
+
+    Parameters
+    ----------
+    X: pd.DataFrame
+        A gene regulatory network X, expected shape = (n_genes, n_genes)
+    Y: pd.DataFrame
+        A gene regulatory network Y, expected shape = (n_genes, n_genes)
+    d: int, default = 30
+        The dimension of the low-dimensional feature space
+    tol: float, default = 1e-8
+        The tolerance of eigen values
+    Returns
+    -------
+    ma_df: pd.DataFrame
+        A dataframe contains manifold alignment result, expected shape = (n_genes * 2, d)
+    """
     shared_genes = list(set(X.index) & set(Y.index))
     X = X.loc[shared_genes, shared_genes]
     Y = Y.loc[shared_genes, shared_genes]
@@ -179,7 +243,6 @@ def manifold_alignment(X: pd.DataFrame,
     np.fill_diagonal(W, 0)
     np.fill_diagonal(W, -W.sum(axis=0))
     eg_vals, eg_vecs = scipy.sparse.linalg.eigs(W, k=d * 2, which="SR")
-    print(eg_vecs.shape, eg_vals)
     eg_vecs = eg_vecs[:, eg_vals >= tol]
     eg_vecs = eg_vecs[:, np.argsort(eg_vals[eg_vals >= tol], )[::-1]]
     return pd.DataFrame(eg_vecs[:, :d],
@@ -189,7 +252,38 @@ def manifold_alignment(X: pd.DataFrame,
 
 @timer
 def d_regulation(data,
+                 sorted_by: Union[str, list] = "p-value",
+                 ascending: Union[bool, list] = True,
                  **kwargs):
+    """
+    Evaluates the difference in regulation
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+        A dataframe contains manifold alignment results, expected shape = (n_genes * 2, d)
+    sorted_by: str or list of str, default = "p-value"
+        Name or list of names to sort by
+    ascending: bool or list of bool, default = True
+        Sorted ascending (otherwise descending)
+    **kwargs
+        Keyword arguments for statistic analyses,
+            boxcox_kws - kwargs for boxcox test
+            chi2_kws - kwargs for chi-square test
+
+    Examples
+    ---------
+    d_reg_df = d_regulation(ma_df)
+
+    d_reg_df = d_regulation(ma_df, boxcox_kws={"lmbda": 0}, chi2_kws={"df": 1})
+
+    Returns
+    -------
+    d_reg_df: pd.DataFrame
+        A dataFrame contains difference in regulation result sorted by p-value
+        columns: ["Gene", "Distance", "boxcox-transformed distance", "Z", "FC", "p-value", "adjusted p-value"]
+
+    """
     all_gene_names = data.index.to_list()
     gene_names = [g[2:] for g in all_gene_names if "X_" == g[:2]]
     assert len(gene_names) * 2 == len(all_gene_names), 'Number of identified and expected genes are not the same'
@@ -197,8 +291,12 @@ def d_regulation(data,
     d_metrics = np.array([np.linalg.norm((data.iloc[x, :] - data.iloc[y, :]).values)
                           for x, y in zip(range(len(gene_names)),
                                           range(len(gene_names), len(all_gene_names)))])
+    boxcox_kws = kwargs.get("boxcox_kws") if "boxcox_kws" in kwargs else {}
+    chi2_kws = kwargs.get("chi2_kws") if "chi2_kws" in kwargs else {}
+    if "df" not in chi2_kws:
+        chi2_kws["df"] = 1
     try:
-        t_d_metrics = np.array(stats.boxcox(d_metrics)[0])
+        t_d_metrics = np.array(stats.boxcox(d_metrics[d_metrics > 0], **boxcox_kws)[0])
     except:
         warn("cannot find the box-cox transformed values")
         t_d_metrics = d_metrics
@@ -206,7 +304,7 @@ def d_regulation(data,
     z_scores = (t_d_metrics - t_d_metrics.mean()) / t_d_metrics.std()
     expected_val = np.mean(np.power(d_metrics, 2))
     FC = np.power(d_metrics, 2) / expected_val
-    p_values = 1 - stats.chi2.cdf(FC, df=1)
+    p_values = 1 - stats.chi2.cdf(FC, **chi2_kws)
     p_adj = cal_fdr(p_values)
     df = pd.DataFrame({
         "Gene": gene_names,
@@ -217,7 +315,7 @@ def d_regulation(data,
         "p-value": p_values,
         "adjusted p-value": p_adj
     })
-    return df.sort_values("p-value", ascending=True)
+    return df.sort_values(sorted_by, ascending=ascending)
 
 
 def strict_direction(data, lambd=1):
