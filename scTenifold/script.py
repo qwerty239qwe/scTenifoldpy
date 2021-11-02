@@ -1,5 +1,5 @@
-from scTenifold.core.utils import get_test_df, read_mtx
-from scTenifold.core.base import scTenifoldNet
+from scTenifold.data import get_test_df, read_mtx
+from scTenifold import scTenifoldNet
 from pathlib import Path
 
 

@@ -10,7 +10,7 @@ pip install sctenifoldpy
 
 #### scTenifoldNet
 ```python
-from scTenifold import get_test_df
+from scTenifold.data import get_test_df
 from scTenifold import scTenifoldNet
 
 df_1, df_2 = get_test_df(n_cells=1000), get_test_df(n_cells=1000)
@@ -20,7 +20,7 @@ result = sc.build()
 
 #### scTenifoldKnk
 ```python
-from scTenifold import get_test_df
+from scTenifold.data import get_test_df
 from scTenifold import scTenifoldKnk
 
 df = get_test_df(n_cells=1000)

@@ -1,18 +1,17 @@
 import time
-from typing import List
 
 import numpy as np
 import pandas as pd
-from scipy.sparse import coo_matrix
 
-from scTenifold.core.networks import *
-from scTenifold.core.QC import scQC
-from scTenifold.core.normalization import cpm_norm
-from scTenifold.core.decomposition import tensor_decomp
-from scTenifold.core.plotting import plot_hist
+from scTenifold.core._networks import *
+from scTenifold.core._QC import sc_QC
+from scTenifold.core._norm import cpm_norm
+from scTenifold.core._decomposition import tensor_decomp
+from scTenifold.core._ko import reconstruct_pcnets
+from scTenifold.plotting import plot_hist
 
 
-__all__ = ("scTenifoldNet", "scTenifoldKnk")
+__all__ = ["scTenifoldNet", "scTenifoldKnk"]
 
 
 class scBase:
@@ -28,6 +27,7 @@ class scBase:
         self.tensor_dict = {}
         self.manifold = None
         self.d_regulation = None
+        self.shared_gene_names = None
         self.qc_kws = {} if qc_kws is None else qc_kws
         self.nc_kws = {} if nc_kws is None else nc_kws
         self.td_kws = {} if td_kws is None else td_kws
@@ -37,11 +37,11 @@ class scBase:
         self.QC_dict[label] = self.data_dict[label].copy()
         self.QC_dict[label].loc[:, "gene"] = self.QC_dict[label].index
         self.QC_dict[label] = self.QC_dict[label].groupby(by="gene").sum()
-        self.QC_dict[label] = scQC(self.QC_dict[label], **self.qc_kws)
+        self.QC_dict[label] = sc_QC(self.QC_dict[label], **self.qc_kws)
         plot_hist(self.QC_dict[label], label)
 
-    def _make_networks(self, label, data):
-        self.network_dict[label] = make_networks(data, **self.nc_kws)
+    def _make_networks(self, label, data, **kwargs):
+        self.network_dict[label] = make_networks(data, **kwargs)
 
     def _tensor_decomp(self, label, gene_names):
         self.tensor_dict[label] = tensor_decomp(np.concatenate([np.expand_dims(network.toarray(), -1)
@@ -50,18 +50,40 @@ class scBase:
 
 
 class scTenifoldNet(scBase):
+    def __init__(self,
+                 x_data: pd.DataFrame,
+                 y_data: pd.DataFrame,
+                 x_label: str,
+                 y_label: str,
+                 qc_kws: dict = None,
+                 nc_kws: dict = None,
+                 td_kws: dict = None,
+                 ma_kws: dict = None):
+        """
 
-    def __init__(self, X, Y,
-                 x_label, y_label,
-                 qc_kws=None,
-                 nc_kws=None,
-                 td_kws=None,
-                 ma_kws=None):
+        Parameters
+        ----------
+        x_data: pd.DataFrame
+            DataFrame contains single-cell data (rows: genes, cols: cells)
+        y_data: pd.DataFrame
+            DataFrame contains single-cell data (rows: genes, cols: cells)
+        x_label: str
+            The label of x_data
+        y_label: str
+            The label of y_data
+        qc_kws: dict
+            Keyword arguments of the QC step
+        nc_kws: dict
+            Keyword arguments of the network constructing step
+        td_kws: dict
+            Keyword arguments of the tensor decomposition step
+        ma_kws: dict
+            Keyword arguments of the manifold alignment step
+        """
         super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws)
         self.x_label, self.y_label = x_label, y_label
-        self.data_dict[x_label] = X
-        self.data_dict[y_label] = Y
-        self.shared_gene_names = None
+        self.data_dict[x_label] = x_data
+        self.data_dict[y_label] = y_data
 
     def save(self):
         pass
@@ -69,7 +91,28 @@ class scTenifoldNet(scBase):
     def _norm(self, label):
         self.QC_dict[label] = cpm_norm(self.QC_dict[label])
 
-    def run_step(self, step_name):
+    def run_step(self,
+                 step_name: str,
+                 **kwargs) -> None:
+        """
+        Run a single step of scTenifoldNet
+
+        Parameters
+        ----------
+        step_name: str
+            The name of step to be run, possible steps:
+            1. qc: Quality control
+            2. nc: Network construction (PCNet)
+            3. td: Tensor decomposition
+            4. ma: Manifold alignment
+            5. dr: Differential regulation evaluation
+        **kwargs
+            Keyword arguments for the step, if None then use stored kws in this object.
+
+        Returns
+        -------
+        None
+        """
         start_time = time.perf_counter()
         if step_name == "qc":
             for label in self.data_dict:
@@ -80,7 +123,7 @@ class scTenifoldNet(scBase):
             x_gene_names, y_gene_names = set(self.QC_dict[self.x_label].index), set(self.QC_dict[self.y_label].index)
             self.shared_gene_names = list(x_gene_names & y_gene_names)
             for label, qc_data in self.QC_dict.items():
-                self._make_networks(label, data=qc_data.loc[self.shared_gene_names, :])
+                self._make_networks(label, data=qc_data.loc[self.shared_gene_names, :], **self.nc_kws)
         elif step_name == "td":
             for label, qc_data in self.QC_dict.items():
                 self._tensor_decomp(label, self.shared_gene_names)
@@ -89,7 +132,7 @@ class scTenifoldNet(scBase):
         elif step_name == "ma":
             self.manifold = manifold_alignment(self.tensor_dict[self.x_label],
                                                self.tensor_dict[self.y_label],
-                                               **self.ma_kws)
+                                               **(self.ma_kws if kwargs == {} else kwargs))
         elif step_name == "dr":
             self.d_regulation = d_regulation(self.manifold)
         else:
@@ -97,8 +140,15 @@ class scTenifoldNet(scBase):
 
         print(f"process {step_name} finished in {time.perf_counter() - start_time} secs.")
 
-    def build(self):
-        print("performing QC and normalization")
+    def build(self) -> pd.DataFrame:
+        """
+        Run the whole pipeline of scTenifoldNet
+
+        Returns
+        -------
+        d_regulation_df: pd.DataFrame
+            Differential regulation result dataframe
+        """
         self.run_step("qc")
         self.run_step("nc")
         self.run_step("td")
@@ -106,38 +156,6 @@ class scTenifoldNet(scBase):
         self.run_step("dr")
 
         return self.d_regulation
-
-
-def ko_propagation(B, x, ko_gene_id, degree):
-    adj_mat = B.copy()
-    np.fill_diagonal(adj_mat, 0)
-    x_ko = x.copy()
-    p = np.zeros(shape=x.shape)
-    p[ko_gene_id, :] = x[ko_gene_id, :]
-    perturbs = [p]
-    is_visited = np.array([False for _ in range(x_ko.shape[0])])
-    for d in range(degree):
-        if not is_visited.all():
-            perturbs.append(adj_mat @ perturbs[d])
-            new_visited = (perturbs[d+1] != 0).any(axis=1)
-            adj_mat[is_visited, :] = 0
-            adj_mat[:, is_visited] = 0
-            is_visited = is_visited | new_visited
-
-    for p in perturbs:
-        x_ko = x_ko - p
-    return np.where(x_ko >= 0, x_ko, 0)
-
-
-def reconstruct_pcnets(nets: List[coo_matrix],
-                       X_df, ko_gene_id, degree, **kwargs):
-    ko_nets = []
-    for net in nets:
-        data = ko_propagation(net.toarray(), X_df.values, ko_gene_id, degree)
-        data = pd.DataFrame(data, index=X_df.index, columns=X_df.columns)
-        ko_net = make_networks(data, n_nets=1, **kwargs)[0]
-        ko_nets.append(ko_net)
-    return ko_nets
 
 
 class scTenifoldKnk(scBase):
@@ -151,6 +169,29 @@ class scTenifoldKnk(scBase):
                  td_kws=None,
                  ma_kws=None,
                  ko_kws=None):
+        """
+
+        Parameters
+        ----------
+        data: pd.DataFrame
+            DataFrame contains single-cell data (rows: genes, cols: cells)
+        strict_lambda: float
+            strict_direction's parameter, default: 0
+        ko_method: str
+            KO method, ['default', 'propagation']
+        ko_genes: str, list of str
+            Gene(s) to be knocked out
+        qc_kws: dict
+            Keyword arguments of the QC step
+        nc_kws: dict
+            Keyword arguments of the network constructing step
+        td_kws: dict
+            Keyword arguments of the tensor decomposition step
+        ma_kws: dict
+            Keyword arguments of the manifold alignment step
+        ko_kws: dict
+            Keyword arguments of the Knock out step
+        """
         super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws)
         self.data_dict["WT"] = data
         self.strict_lambda = strict_lambda
@@ -176,13 +217,18 @@ class scTenifoldKnk(scBase):
         else:
             ValueError("No such method")
 
+    def run_step(self,
+                 step_name: str,
+                 **kwargs):
+        pass
+
     def build(self):
         self._QC("WT")
         if self.QC_dict["WT"].shape[1] > 500:
             self.QC_dict["WT"] = self.QC_dict["WT"].loc[self.QC_dict["WT"].mean(axis=1) >= 0.05, :]
         else:
             self.QC_dict["WT"] = self.QC_dict["WT"].loc[self.QC_dict["WT"].sum(axis=1) >= 5, :]
-        self._make_networks("WT", self.QC_dict["WT"])
+        self._make_networks("WT", self.QC_dict["WT"], **self.nc_kws)
         self.shared_gene_names = self.QC_dict["WT"].index.to_list()
         self._tensor_decomp("WT", self.shared_gene_names)
         self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T

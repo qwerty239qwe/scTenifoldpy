@@ -1,8 +1,8 @@
 import click
 from pathlib import Path
 import yaml
-from scTenifold.core.utils import read_mtx
-from scTenifold.core.base import scTenifoldNet
+from scTenifold.data import read_mtx
+from scTenifold.core._base import scTenifoldNet
 
 
 @click.command()

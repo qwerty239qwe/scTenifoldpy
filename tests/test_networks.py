@@ -4,8 +4,8 @@ from functools import partial
 import numpy as np
 import scipy.stats as stats
 
-from scTenifold.core.networks import cal_pc_coefs
-from scTenifold.core.utils import get_test_df
+from scTenifold.core._networks import cal_pc_coefs
+from scTenifold.core._utils import get_test_df
 
 
 def test_cal_pc_coefs_stability():

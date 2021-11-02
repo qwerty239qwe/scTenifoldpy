@@ -6,7 +6,7 @@ import networkx as nx
 from scipy.stats import chi2
 from typing import Tuple, Optional
 
-from scTenifold.core.dim_reduction import prepare_PCA_dfs, prepare_embedding_dfs
+from scTenifold.plotting._dim_reduction import *
 
 
 def plot_network_graph(network: np.ndarray,
@@ -35,12 +35,31 @@ def plot_network_heatmap(network, figsize=(12, 12)):
 def plot_qqplot(df,
                 exp_col="FC",
                 stat_col="adjusted p-value",
-                plot_qqline=True,
-                sig=0.1):
+                plot_qqline: bool = True,
+                sig_threshold: float = 0.1) -> None:
+    """
+    Plot QQ-plot using a
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        A d_regulation dataframe
+    exp_col: str
+        Column name of data used to put the y-axis
+    stat_col: str
+        Column name of data used to check significance
+    plot_qqline: bool
+        Plot Q-Q line on the plot
+    sig_threshold: float
+        The significance
+    Returns
+    -------
+    None
+    """
     the_col = "Theoretical quantiles"
     len_x = df.shape[0]
     data = df.loc[:, [exp_col, stat_col]]
-    data["significant"] = data[stat_col].apply(lambda x: x < sig)
+    data["significant"] = data[stat_col].apply(lambda x: x < sig_threshold)
     data.sort_values(exp_col, inplace=True)
     data[the_col] = chi2.ppf(q=np.linspace(0, 1, len_x + 2)[1:-1], df=1)
     sns.scatterplot(data=data, x="Theoretical quantiles", y=exp_col, hue="significant")

@@ -2,14 +2,32 @@ import pandas as pd
 from warnings import warn
 
 
-def scQC(X: pd.DataFrame,
-         min_lib_size: float = 1000,
-         remove_outlier_cells: bool = True,
-         min_PCT: float = 0.05,
-         max_MT_ratio: float = 0.1):
+def sc_QC(X: pd.DataFrame,
+          min_lib_size: float = 1000,
+          remove_outlier_cells: bool = True,
+          min_PCT: float = 0.05,
+          max_MT_ratio: float = 0.1) -> pd.DataFrame:
+    """
+    main QC function in scTenifold pipelines
 
-    """Emulate scTenifoldNet's func"""
+    Parameters
+    ----------
+    X: pd.DataFrame
+        A single-cell RNAseq DataFrame (rows: genes, cols: cells)
+    min_lib_size: int, float, default = 1000
+        Minimum library size of cells
+    remove_outlier_cells: bool, default = True
+        Whether the QC function will remove the outlier cells
+    min_PCT: float, default = 0.05
+        Minimum average expression value of genes
+    max_MT_ratio: float, default = 0.1
+        Maximum mitochondrial genes ratio
 
+    Returns
+    -------
+    X_modified: pd.DataFrame
+        The DataFrame after QC
+    """
     outlier_coef = 1.5
     X[X < 0] = 0
     lib_size = X.sum(axis=0)

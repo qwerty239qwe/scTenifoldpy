@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
 import scipy
-from scTenifold.core.utils import timer
+from scTenifold.core._utils import timer
 from tensorly.decomposition import parafac
 import tensorly as tl
 
+__all__ = ["tensor_decomp"]
 
 def unfold(X, mode):
     """

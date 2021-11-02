@@ -1,19 +1,21 @@
+from functools import partial
+from warnings import warn
+from typing import List
+
 import numpy as np
 import pandas as pd
 from scipy import stats
 import scipy.sparse.linalg
 from scipy.sparse import coo_matrix
-from functools import partial
-
-from warnings import warn
 from sklearn.utils.extmath import randomized_svd
+import ray
 
 # import dask
 # import dask.array as da
-from scTenifold.core.utils import cal_fdr, timer
-import ray
+from scTenifold.core._utils import cal_fdr, timer
 
-__all__ = ("make_networks", "manifold_alignment", "d_regulation", "strict_direction")
+
+__all__ = ["make_networks", "manifold_alignment", "d_regulation", "strict_direction"]
 
 
 def cal_pc_coefs(k, X, n_comp, method="sklearn", random_state=42):
@@ -89,7 +91,36 @@ def make_networks(data: pd.DataFrame,
                   q: float = 0.95,
                   random_state: int = 42,
                   **kwargs
-                  ):
+                  ) -> List[coo_matrix]:
+    """
+    Make PCNets from a data frame by subsampling the cells
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+        Input dataframe
+    n_nets: int, default = 10
+        Number of subsampling times
+    n_samp_cells: int, default = 500
+        Number of subsampled cells
+    n_comp: int, default = 3
+        Number of PCNets composition
+    scale_scores: bool, default = True
+        To scale the final PCNets scores or not
+    symmetric: bool, default = False
+        To make the final PCNets symmetric or not
+    q: float, default = 0.95
+        The quantile value used to determine PCNet's threshold
+    random_state: int, default = 42
+        Random seed of constructing PCNets
+    kwargs
+        Keyword arguments
+
+    Returns
+    -------
+    networks: List[coo_matrix]
+        A list contains PCNets (in coo sparse matrix format)
+    """
     gene_names = data.index.to_numpy()
     n_genes, n_cells = data.shape
     assert not np.array_equal(gene_names, np.array([i for i in range(n_genes)])), 'Gene names are required'
@@ -157,7 +188,8 @@ def manifold_alignment(X: pd.DataFrame,
 
 
 @timer
-def d_regulation(data, **kwargs):
+def d_regulation(data,
+                 **kwargs):
     all_gene_names = data.index.to_list()
     gene_names = [g[2:] for g in all_gene_names if "X_" == g[:2]]
     assert len(gene_names) * 2 == len(all_gene_names), 'Number of identified and expected genes are not the same'

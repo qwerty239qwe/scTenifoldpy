@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from scTenifold.core.utils import read_mtx
+from scTenifold.core._utils import read_mtx
 
 
 @pytest.fixture(scope="session")
