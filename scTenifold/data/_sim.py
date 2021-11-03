@@ -57,11 +57,10 @@ class TestDataGenerator:
     neg_eff_ratio: float, default = 0
         Fraction of down-regulated cells
     target_pos: sequence, optional, default = DEFAULT_POS
-
-    target_neg
-    n_bins
-    n_ctrl
-    random_state
+    target_neg: sequence, optional, default = DEFAULT_NEG
+    n_bins: int, default = 25
+    n_ctrl: int, default = 50
+    random_state: int, default = 42
 
     """
     n_genes: int = 1000

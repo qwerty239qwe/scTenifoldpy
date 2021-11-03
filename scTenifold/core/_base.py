@@ -1,7 +1,9 @@
 import time
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy import sparse
 
 from scTenifold.core._networks import *
 from scTenifold.core._QC import sc_QC
@@ -84,9 +86,39 @@ class scTenifoldNet(scBase):
         self.x_label, self.y_label = x_label, y_label
         self.data_dict[x_label] = x_data
         self.data_dict[y_label] = y_data
+        self.step_comps = {"qc": self.QC_dict,
+                           "nc": self.network_dict,
+                           "td": self.tensor_dict,
+                           "ma": self.manifold,
+                           "dr": self.d_regulation}
 
-    def save(self):
-        pass
+    def _save_comp(self,
+                   file_dir: Path,
+                   comp: str):
+        if comp == "qc":
+            for label, obj in self.step_comps["qc"].items():
+                label_fn = (file_dir / Path(label)).with_suffix(".csv")
+                obj.to_csv(label_fn)
+        elif comp == "nc":
+            for label, obj in self.step_comps["nc"].items():
+                for i, npx in enumerate(obj):
+                    file_name = file_dir / Path(f"{label}/network_{i}").with_suffix(".npz")
+                    sparse.save_npz(file_name, npx)
+        elif comp == "td":
+            for label, obj in self.step_comps["td"].items():
+                pass # TODO: finish this
+
+    def save(self, file_dir, comps="all"):
+        dir_path = Path(file_dir)
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+        if comps == "all":
+            comps = [k for k, v in self.step_comps.items() if len(v) != 0]
+        for c in comps:
+            subdir = dir_path / Path(c)
+            subdir.mkdir(parents=True, exist_ok=True)
+            self._save_comp(subdir, c)
+
 
     def _norm(self, label):
         self.QC_dict[label] = cpm_norm(self.QC_dict[label])
@@ -280,6 +312,7 @@ class scTenifoldKnk(scBase):
         self.run_step("qc")
         self.run_step("nc")
         self.run_step("td")
+        self.run_step("ko")
         self.run_step("ma")
         self.run_step("dr")
         return self.d_regulation
