@@ -141,7 +141,9 @@ def plot_embedding(df,
         feature_df = prepare_embedding_dfs(df, reducer=method)
         emb_name = method
 
-    print(feature_df.columns)
+    if groups is None:
+        groups = {"all": df.columns.to_list()}
+
     for i, (group_name, sample_names) in enumerate(groups.items()):
         em1, em2 = np.array([feature_df.loc[name, '{} 1'.format(emb_name)] for name in sample_names]), \
                    np.array([feature_df.loc[name, '{} 2'.format(emb_name)] for name in sample_names])

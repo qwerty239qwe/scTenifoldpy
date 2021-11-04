@@ -10,8 +10,8 @@ def test_scTenifoldNet():
     sc = scTenifoldNet(df_1, df_2, "X", "Y", qc_kws={"min_lib_size": 10})
     result = sc.build()
     assert isinstance(result, pd.DataFrame)
-    sc.save(file_dir=".")
-    sc2 = scTenifoldNet.load(file_dir=".")
+    # sc.save(file_dir=".")
+    # sc2 = scTenifoldNet.load(file_dir=".")
 
 
 def test_scTenifoldKnk_method1():
@@ -21,8 +21,8 @@ def test_scTenifoldKnk_method1():
                        qc_kws={"min_lib_size": 10})
     result = sc.build()
     assert isinstance(result, pd.DataFrame)
-    sc.save(file_dir=".")
-    sc2 = scTenifoldNet.load(file_dir=".")
+    # sc.save(file_dir=".")
+    # sc2 = scTenifoldNet.load(file_dir=".")
 
 
 @pytest.mark.test

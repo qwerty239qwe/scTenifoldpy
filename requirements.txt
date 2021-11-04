@@ -36,7 +36,8 @@ zipp~=3.4.1
 ray[default]~=1.4.0
 click~=8.0.1
 PyYAML~=5.4.1
-networkx
+networkx~=2.6.3
 tensorly~=0.6.0
 anndata~=0.7.6
 scanpy~=1.7.2
+requests~=2.26.0
