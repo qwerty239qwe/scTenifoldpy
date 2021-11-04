@@ -10,6 +10,8 @@ def test_scTenifoldNet():
     sc = scTenifoldNet(df_1, df_2, "X", "Y", qc_kws={"min_lib_size": 10})
     result = sc.build()
     assert isinstance(result, pd.DataFrame)
+    sc.save(file_dir=".")
+    sc2 = scTenifoldNet.load(file_dir=".")
 
 
 def test_scTenifoldKnk_method1():
@@ -19,6 +21,8 @@ def test_scTenifoldKnk_method1():
                        qc_kws={"min_lib_size": 10})
     result = sc.build()
     assert isinstance(result, pd.DataFrame)
+    sc.save(file_dir=".")
+    sc2 = scTenifoldNet.load(file_dir=".")
 
 
 @pytest.mark.test
@@ -27,7 +31,7 @@ def test_scTenifoldKnk_method2():
     sc = scTenifoldKnk(data=df,
                        ko_method="propagation",
                        ko_genes=["NG-1"],  # the gene you wants to knock out
-                       qc_kws={"min_lib_size": 10, "min_PCT": 0.001},
+                       qc_kws={"min_lib_size": 10, "min_percent": 0.001},
                        ko_kws={"degree": 10})
     result = sc.build()
     assert isinstance(result, pd.DataFrame)

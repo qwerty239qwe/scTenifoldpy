@@ -1,5 +1,7 @@
+import json
 import time
 from pathlib import Path
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -27,13 +29,74 @@ class scBase:
         self.QC_dict = {}
         self.network_dict = {}
         self.tensor_dict = {}
-        self.manifold = None
-        self.d_regulation = None
+        self.manifold: Optional[pd.DataFrame] = None
+        self.d_regulation: Optional[pd.DataFrame] = None
         self.shared_gene_names = None
         self.qc_kws = {} if qc_kws is None else qc_kws
         self.nc_kws = {} if nc_kws is None else nc_kws
         self.td_kws = {} if td_kws is None else td_kws
         self.ma_kws = {} if ma_kws is None else ma_kws
+        self.step_comps = {"qc": self.QC_dict,
+                           "nc": self.network_dict,
+                           "td": self.tensor_dict,
+                           "ma": self.manifold,
+                           "dr": self.d_regulation}
+
+    @classmethod
+    def _load_comp(cls,
+                   file_dir: Path,
+                   comp):
+        if comp == "qc":
+            dic = {}
+            for d in file_dir.iterdir():
+                if d.is_file():
+                    dic[d.stem] = pd.read_csv(d)
+        elif comp == "nc":
+            dic = {}
+            for d in file_dir.iterdir():
+                if d.is_dir():
+                    dic[d.stem] = []
+                    nt = 0
+                    while (d / Path(f"network_{nt}.npz")).exists():
+                        dic[d.stem].append(sparse.load_npz(d / Path("network_{nt}.npz")))
+                        nt += 1
+        elif comp == "td":
+            dic = {}
+            for d in file_dir.iterdir():
+                if d.is_file():
+                    dic[d.stem] = sparse.load_npz(d).toarray()
+        elif comp in ["ma", "dr"]:
+            dic = {}
+            for d in file_dir.iterdir():
+                if d.is_file():
+                    dic[d.stem] = pd.read_csv(d)
+        else:
+            raise ValueError()
+        return dic
+
+    @classmethod
+    def load(cls,
+             file_dir,
+             **kwargs):
+        parent_dir = Path(file_dir)
+        kw_path = parent_dir / Path("kws.json")
+        with open(kw_path, "r") as f:
+            kws = json.load(f)
+        kwargs.update(kws)
+        shared_gene_names = kwargs.pop("shared_gene_names") if "shared_gene_names" in kwargs else None
+        ins = cls.__init__(**kwargs)
+        for name, obj in ins.step_comps.items():
+            if (file_dir / Path(name)).exists():
+                setattr(ins, name, cls._load_comp(file_dir / Path(name), name))
+        ins.shared_gene_names = shared_gene_names
+        return ins
+
+    @staticmethod
+    def _infer_groups(*args):
+        grps = set()
+        for kw in args:
+            grps |= set(kw.keys())
+        return list(grps)
 
     def _QC(self, label):
         self.QC_dict[label] = self.data_dict[label].copy()
@@ -49,6 +112,65 @@ class scBase:
         self.tensor_dict[label] = tensor_decomp(np.concatenate([np.expand_dims(network.toarray(), -1)
                                                                 for network in self.network_dict[label]], axis=-1),
                                                 gene_names, **self.td_kws)
+
+    def _save_comp(self,
+                   file_dir: Path,
+                   comp: str,
+                   verbose: bool):
+        if comp == "qc":
+            for label, obj in self.step_comps["qc"].items():
+                label_fn = (file_dir / Path(label)).with_suffix(".csv")
+                obj.to_csv(label_fn)
+                if verbose:
+                    print(f"{label_fn.name} has been saved successfully.")
+        elif comp == "nc":
+            for label, obj in self.step_comps["nc"].items():
+                for i, npx in enumerate(obj):
+                    file_name = file_dir / Path(f"{label}/network_{i}").with_suffix(".npz")
+                    sparse.save_npz(file_name, npx)
+                    if verbose:
+                        print(f"{file_name.name} has been saved successfully.")
+        elif comp == "td":
+            for label, obj in self.step_comps["td"].items():
+                sp = sparse.coo_matrix(obj)
+                label_fn = (file_dir / Path(label)).with_suffix(".npz")
+                sparse.save_npz(label_fn, sp)
+                if verbose:
+                    print(f"{label_fn.name} has been saved successfully.")
+        elif comp in ["ma", "td"]:
+            if isinstance(self.step_comps["ma"], pd.DataFrame):
+                fn = (file_dir / Path("manifold_alignment" if comp == "ma" else "d_regulation")).with_suffix(".csv")
+                self.step_comps[comp].to_csv(fn)
+                if verbose:
+                    print(f"{fn.name} has been saved successfully.")
+        else:
+            raise ValueError(f"This step is not valid, please choose from {list(self.step_comps.keys())}")
+
+    def save(self,
+             file_dir: str,
+             comps: Union[str, list] = "all",
+             verbose: bool = True,
+             **kwargs):
+        dir_path = Path(file_dir)
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+        if comps == "all":
+            comps = [k for k, v in self.step_comps.items() if len(v) != 0]
+        for c in comps:
+            subdir = dir_path / Path(c)
+            subdir.mkdir(parents=True, exist_ok=True)
+            self._save_comp(subdir, c, verbose)
+        configs = {"qc": self.qc_kws, "nc": self.nc_kws, "td": self.td_kws, "ma": self.ma_kws}
+        if hasattr(self, "ko_kws"):
+            configs.update({"ko": getattr(self, "ko_kws")})
+        if hasattr(self, "dr_kws"):
+            configs.update({"dr": getattr(self, "dr_kws")})
+
+        if self.shared_gene_names is not None:
+            configs.update({"shared_gene_names": self.shared_gene_names})
+        configs.update(kwargs)
+        with open(dir_path / Path('kws.json'), 'w') as f:
+            json.dump(configs, f)
 
 
 class scTenifoldNet(scBase):
@@ -86,39 +208,15 @@ class scTenifoldNet(scBase):
         self.x_label, self.y_label = x_label, y_label
         self.data_dict[x_label] = x_data
         self.data_dict[y_label] = y_data
-        self.step_comps = {"qc": self.QC_dict,
-                           "nc": self.network_dict,
-                           "td": self.tensor_dict,
-                           "ma": self.manifold,
-                           "dr": self.d_regulation}
 
-    def _save_comp(self,
-                   file_dir: Path,
-                   comp: str):
-        if comp == "qc":
-            for label, obj in self.step_comps["qc"].items():
-                label_fn = (file_dir / Path(label)).with_suffix(".csv")
-                obj.to_csv(label_fn)
-        elif comp == "nc":
-            for label, obj in self.step_comps["nc"].items():
-                for i, npx in enumerate(obj):
-                    file_name = file_dir / Path(f"{label}/network_{i}").with_suffix(".npz")
-                    sparse.save_npz(file_name, npx)
-        elif comp == "td":
-            for label, obj in self.step_comps["td"].items():
-                pass # TODO: finish this
-
-    def save(self, file_dir, comps="all"):
-        dir_path = Path(file_dir)
-        dir_path.mkdir(parents=True, exist_ok=True)
-
-        if comps == "all":
-            comps = [k for k, v in self.step_comps.items() if len(v) != 0]
-        for c in comps:
-            subdir = dir_path / Path(c)
-            subdir.mkdir(parents=True, exist_ok=True)
-            self._save_comp(subdir, c)
-
+    def save(self,
+             file_dir: str,
+             comps: Union[str, list] = "all",
+             verbose: bool = True,
+             **kwargs):
+        super().save(file_dir, comps, verbose,
+                     x_data="", y_data="",    # TODO: fix this later
+                     x_label=self.x_label, y_label=self.y_label)
 
     def _norm(self, label):
         self.QC_dict[label] = cpm_norm(self.QC_dict[label])
@@ -168,7 +266,7 @@ class scTenifoldNet(scBase):
         elif step_name == "dr":
             self.d_regulation = d_regulation(self.manifold)
         else:
-            raise ValueError("")
+            raise ValueError("This step name is not valid, please choose from qc, nc, td, ma, dr")
 
         print(f"process {step_name} finished in {time.perf_counter() - start_time} secs.")
 
@@ -230,6 +328,16 @@ class scTenifoldKnk(scBase):
         self.ko_genes = ko_genes if ko_genes is not None else []
         self.ko_method = ko_method
         self.ko_kws = {} if ko_kws is None else ko_kws
+
+    def save(self,
+             file_dir: str,
+             comps: Union[str, list] = "all",
+             verbose: bool = True,
+             **kwargs):
+        super().save(file_dir, comps, verbose,
+                     data="",  # TODO: fix this later
+                     ko_method=self.ko_method,
+                     strict_lambda=self.strict_lambda, ko_genes=self.ko_genes)
 
     def _get_ko_tensor(self):
         if self.ko_method == "default":
