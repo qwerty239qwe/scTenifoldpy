@@ -155,7 +155,8 @@ class scBase:
         dir_path.mkdir(parents=True, exist_ok=True)
 
         if comps == "all":
-            comps = [k for k, v in self.step_comps.items() if len(v) != 0]
+            comps = [k for k, v in self.step_comps.items()
+                     if v is not None or (isinstance(v, dict) and len(v) != 0)]
         for c in comps:
             subdir = dir_path / Path(c)
             subdir.mkdir(parents=True, exist_ok=True)
