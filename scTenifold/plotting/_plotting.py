@@ -1,10 +1,11 @@
+from typing import Tuple, Optional
+
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import networkx as nx
 from scipy.stats import chi2
-from typing import Tuple, Optional
 
 from scTenifold.plotting._dim_reduction import *
 
