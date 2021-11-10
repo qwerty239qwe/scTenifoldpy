@@ -4,7 +4,7 @@ from typing import Optional, Sequence
 import numpy as np
 import pandas as pd
 from scipy import sparse
-from anndata import AnnData
+# from anndata import AnnData
 
 
 __all__ = ["get_test_df", "DEFAULT_POS", "DEFAULT_NEG", "TestDataGenerator"]
@@ -112,17 +112,18 @@ class TestDataGenerator:
     def get_data(self, data_type, use_normalized) -> dict:
         used_X = self.n_X if use_normalized else self.X
         if data_type == "ann_data":
-            used_X = AnnData(
-                sparse.csr_matrix(used_X.T),
-                obs=pd.DataFrame(index=self.samples),
-                var=pd.DataFrame(index=self.gene_list),
-            )
-            return {"random_state": self.random_state_seed,
-                    "adata": used_X,
-                    "gene_list": self.target_pos,
-                    "n_bins": self.n_bins,
-                    "ctrl_size": self.n_ctrl,
-                    "copy": True}
+            # used_X = AnnData(
+            #     sparse.csr_matrix(used_X.T),
+            #     obs=pd.DataFrame(index=self.samples),
+            #     var=pd.DataFrame(index=self.gene_list),
+            # )
+            # return {"random_state": self.random_state_seed,
+            #         "adata": used_X,
+            #         "gene_list": self.target_pos,
+            #         "n_bins": self.n_bins,
+            #         "ctrl_size": self.n_ctrl,
+            #         "copy": True}
+            return {}
         elif data_type == "numpy":
             return {"random_state": self.random_state_seed,
                     "X": used_X,

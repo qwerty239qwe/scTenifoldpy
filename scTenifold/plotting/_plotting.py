@@ -110,6 +110,7 @@ def plot_embedding(df,
                    method: str = "UMAP",
                    plot_2D: bool = True,
                    figsize: tuple = (8, 8),
+                   size: int = 10,
                    title: str = None,
                    palette: str = "muted",
                    **kwargs):
@@ -133,27 +134,31 @@ def plot_embedding(df,
     -------
 
     """
-    colors = sns.color_palette(palette)
-    fig, ax = plt.subplots(figsize=figsize)
+
     if method == "PCA":
         feature_df, exp_var_df, component_df = prepare_PCA_dfs(df, **kwargs)
         emb_name = "PC"
     else:
-        feature_df = prepare_embedding_dfs(df, reducer=method)
+        feature_df = prepare_embedding_dfs(df, reducer=method, **kwargs)
         emb_name = method
 
     if groups is None:
         groups = {"all": df.columns.to_list()}
-
+    colors = sns.color_palette(palette)
+    if plot_2D:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(111, projection="3d")
     for i, (group_name, sample_names) in enumerate(groups.items()):
         em1, em2 = np.array([feature_df.loc[name, '{} 1'.format(emb_name)] for name in sample_names]), \
                    np.array([feature_df.loc[name, '{} 2'.format(emb_name)] for name in sample_names])
 
         if plot_2D:
-            ax.scatter(em1, em2, s=1, label=group_name, c=[colors[i]])
+            ax.scatter(em1, em2, s=size, label=group_name, c=[colors[i]])
         else:
             em3 = np.array([feature_df.loc[name, '{} 3'.format(emb_name)] for name in sample_names])
-            ax.scatter(em1, em2, em3, s=1, label=group_name, c=[colors[i]])
+            ax.scatter(em1, em2, em3, s=size, label=group_name, c=[colors[i]])
 
     x_label = '{} 1'.format(emb_name)
     y_label = '{} 2'.format(emb_name)
