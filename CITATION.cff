@@ -20,12 +20,12 @@ preferred-citation:
     given-names: "James"
     orcid: "https://orcid.org/0000-0002-8081-6725"
   title: "scTenifoldNet: A Machine Learning Workflow for Constructing and Comparing Transcriptome-wide Gene Regulatory Networks from Single-Cell Data"
-  doi:10.1016/j.patter.2020.100139
+  doi: "10.1016/j.patter.2020.100139"
   journal: "Patterns"
   volume: 1
   issue: 9
   year: 2020
-  issn: 2666-3899
   number: 100139
-  pages: 1-18
+  start: 1
+  end: 18
   url: "https://www.sciencedirect.com/science/article/pii/S2666389920301872?via%3Dihub"
