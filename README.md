@@ -1,7 +1,13 @@
 # scTenifoldpy
-![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/biodbs.svg)](https://pypi.python.org/pypi/biodbs/)
 [![Pattern](https://img.shields.io/badge/DOI-10.1016/j.patter.2020.100139-blue)](https://www.sciencedirect.com/science/article/pii/S2666389920301872#bib48)
 [![GitHub license](https://img.shields.io/github/license/qwerty239qwe/scTenifoldpy.svg)](https://github.com/qwerty239qwe/scTenifoldpy/blob/master/LICENSE)
+
+This package is a Python version of [scTenifoldNet](https://github.com/cailab-tamu/scTenifoldNet) 
+and [scTenifoldKnk](https://github.com/cailab-tamu/scTenifoldKnk). If you are a R/MATLAB user, 
+please install them to use their functions. 
+Also, please [cite](https://www.sciencedirect.com/science/article/pii/S2666389920301872) the original paper properly 
+if you are using this in a scientific publication. Thank you!
 
 ### Installation
 ```
