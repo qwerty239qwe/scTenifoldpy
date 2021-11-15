@@ -34,9 +34,10 @@ from scTenifold import scTenifoldKnk
 
 df = get_test_df(n_cells=1000)
 sc = scTenifoldKnk(data=df,
-                   ko_method="propagation",
+                   ko_method="default",
                    ko_genes=["NG-1"],  # the gene you wants to knock out
                    qc_kws={"min_lib_size": 10, "min_percent": 0.001},
-                   ko_kws={"degree": 10})
+                   # ko_kws={"degree": 10}
+                   )
 result = sc.build()
 ```
