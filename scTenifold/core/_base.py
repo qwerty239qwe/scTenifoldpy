@@ -407,7 +407,8 @@ class scTenifoldKnk(scBase):
     def _get_ko_tensor(self, ko_genes, **kwargs):
         if self.ko_method == "default":
             self.tensor_dict["KO"] = self.tensor_dict["WT"].copy()
-            self.tensor_dict["KO"].loc[self.ko_genes, :] = 0
+            self.tensor_dict["KO"].loc[ko_genes, :] = 0
+            self.tensor_dict["KO"].loc[:, ko_genes] = 0
         elif self.ko_method == "propagation":
             print(self.QC_dict["WT"].index)
             self.network_dict["KO"] = reconstruct_pcnets(self.network_dict["WT"],
