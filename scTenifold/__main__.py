@@ -1,4 +1,4 @@
-import click
+import typer
 from pathlib import Path
 import yaml
 from scTenifold.data import read_mtx

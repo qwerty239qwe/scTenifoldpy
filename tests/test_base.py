@@ -33,7 +33,6 @@ def test_scTenifoldKnk_method1():
     np.array_equal(sc.tensor_dict["WT"], sc2.tensor_dict["WT"])
 
 
-@pytest.mark.test
 def test_scTenifoldKnk_method2():
     df = get_test_df(n_genes=100, n_cells=100)
     sc = scTenifoldKnk(data=df,
@@ -41,6 +40,12 @@ def test_scTenifoldKnk_method2():
                        ko_genes=["NG-1"],  # the gene you wants to knock out
                        qc_kws={"min_lib_size": 10, "min_percent": 0.001},
                        ko_kws={"degree": 10})
+    sc.run_step("qc")
+    sc.run_step("nc", n_cpus=-1)
+    sc.run_step("td")
+    sc.run_step("ko", ko_genes=[sc.tensor_dict["WT"].index.to_list()[0]])
+    sc.run_step("ma")
+    sc.run_step("dr")
     result = sc.build()
     assert isinstance(result, pd.DataFrame)
 
