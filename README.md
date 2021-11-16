@@ -48,8 +48,12 @@ Use this command to create a config.yml file,
 python -m scTenifold config -t 1 -p ./net_config.yml
 ```
 Next, open the config file, add data path, and edit the parameters.<br>
-Then use the command below to produce the results:
+Then use the command below to produce the scTenifoldNet results:
 ```shell
 python -m scTenifold net -c ./net_config.yml -o ./output_folder
 ```
 
+Or use the command below to produce the knockout results:
+```shell
+python -m scTenifold knk -c ./knk_config.yml -o ./output_folder
+```
