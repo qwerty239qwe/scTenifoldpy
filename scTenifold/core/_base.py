@@ -462,8 +462,13 @@ class scTenifoldKnk(scBase):
             self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T
         elif step_name == "ko":
             np.fill_diagonal(self.tensor_dict["WT"].values, 0)
-            self._get_ko_tensor(self.ko_genes if kwargs.get("ko_genes") is None else kwargs.get("ko_genes"),
-                                **(self.ko_kws if kwargs == {} else kwargs))
+            if kwargs.get("ko_genes") is not None:
+                ko_genes = kwargs.pop("ko_genes")
+                kwargs = (self.ko_kws if kwargs == {} else kwargs)
+            else:
+                ko_genes = self.ko_genes
+                kwargs = (self.ko_kws if kwargs == {} else kwargs)
+            self._get_ko_tensor(ko_genes, **kwargs)
         elif step_name == "ma":
             self.manifold = manifold_alignment(self.tensor_dict["WT"],
                                                self.tensor_dict["KO"],

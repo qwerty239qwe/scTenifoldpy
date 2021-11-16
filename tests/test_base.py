@@ -19,7 +19,6 @@ def test_scTenifoldNet():
 def test_scTenifoldKnk_method1():
     df = get_test_df(n_cells=100, n_genes=100, random_state=42)
     sc = scTenifoldKnk(data=df,
-                       ko_genes=["NG-1"],
                        qc_kws={"min_lib_size": 1})
     sc.run_step("qc")
     sc.run_step("nc", n_cpus=1)
@@ -36,8 +35,7 @@ def test_scTenifoldKnk_method1():
 def test_scTenifoldKnk_method2():
     df = get_test_df(n_genes=100, n_cells=100)
     sc = scTenifoldKnk(data=df,
-                       ko_method="propagation",
-                       ko_genes=["NG-1"],  # the gene you wants to knock out
+                       ko_method="propagation",  # the gene you wants to knock out
                        qc_kws={"min_lib_size": 10, "min_percent": 0.001},
                        ko_kws={"degree": 10})
     sc.run_step("qc")
@@ -48,7 +46,3 @@ def test_scTenifoldKnk_method2():
     sc.run_step("dr")
     assert isinstance(sc.d_regulation, pd.DataFrame)
 
-# data not uploaded yet
-# def test_scTenifoldNet_2(control_data, treated_data):
-#     sc = scTenifoldNet(control_data, treated_data, "X", "Y")
-#     result = sc.build()
