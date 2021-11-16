@@ -6,11 +6,19 @@
 Welcome to scTenifold's documentation!
 ======================================
 
-**scTenifold** is a Python library for scTenifoldNet and scTenifoldKnk implementation
+**scTenifold is a Python_ library for scTenifoldNet and scTenifoldKnk implementation.**
 
-.. note::
+This package is a Python_ version of scTenifoldNet_
+and scTenifoldKnk_. If you are a R/MATLAB user,
+please install them to use their functions.
+Also, please cite the original paper_ properly
+if you are using this in a scientific publication.
+Thank you!
 
-   This project is under active development.
+.. _Python: http://www.python.org/
+.. _scTenifoldNet: https://github.com/cailab-tamu/scTenifoldNet
+.. _scTenifoldKnk: https://github.com/cailab-tamu/scTenifoldKnk
+.. _paper: https://www.sciencedirect.com/science/article/pii/S2666389920301872
 
 .. toctree::
    :maxdepth: 2
@@ -19,6 +27,7 @@ Welcome to scTenifold's documentation!
    installation
    quickstart
    tutorials
+   cli
    api
 
 

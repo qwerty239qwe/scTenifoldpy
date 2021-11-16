@@ -1,10 +1,10 @@
 import typer
 from pathlib import Path
 import yaml
-from scTenifold.data import read_mtx
 from scTenifold import scTenifoldNet, scTenifoldKnk
 
 app = typer.Typer()
+
 
 @app.command(name="config")
 def get_config_file(
@@ -12,27 +12,48 @@ def get_config_file(
                                         help="Type, 1: scTenifoldNet, 2: scTenifoldKnk",
                                         min=1, max=2),
         file_path: str = typer.Option(
-                        ".",
+                        ".config.yml",
                         "--path",
                         "-p",
                         help="Path to generate empty config file")):
-    config = scTenifoldNet.get_empty_config()
+    config = scTenifoldNet.get_empty_config() if config_type == 1 else scTenifoldKnk.get_empty_config()
+    with open(Path(file_path), 'w') as outfile:
+        yaml.dump(config, outfile, default_flow_style=False)
 
 
 @app.command(name="net")
-def main(config_file_path):
+def build_net(config_file_path: str = typer.Option(...,
+                                                   "--config",
+                                                   "-c",
+                                                   help="Loaded config file's path"),
+              output_dir_path: str = typer.Option("./saved_net",
+                                                  "--output",
+                                                  "-o",
+                                                  help="Output folder containing all analysis results"),
+              ):
     with open(Path(config_file_path), "r") as f:
         data = yaml.safe_load(f)
-    X_name, Y_name = data["X"]["name"], data["Y"]["name"]
-    dataset = {X_name: read_mtx(data["X"]["mtx_path"],
-                                data["X"]["gene_path"],
-                                data["X"]["barcodes_path"]),
-               Y_name: read_mtx(data["Y"]["mtx_path"],
-                                data["Y"]["gene_path"],
-                                data["Y"]["barcodes_path"])}
+    sc = scTenifoldNet.load_config(config=data)
+    sc.build()
+    sc.save(output_dir_path)
 
-    sc = scTenifoldNet(dataset[X_name], dataset[Y_name], X_name, Y_name)
+
+@app.command(name="knk")
+def build_net(config_file_path: str = typer.Option(...,
+                                                   "--config",
+                                                   "-c",
+                                                   help="Loaded config file's path"),
+              output_dir_path: str = typer.Option("./saved_knk",
+                                                  "--output",
+                                                  "-o",
+                                                  help="Output folder containing all analysis results"),
+              ):
+    with open(Path(config_file_path), "r") as f:
+        data = yaml.safe_load(f)
+    sc = scTenifoldKnk.load_config(config=data)
+    sc.build()
+    sc.save(output_dir_path)
 
 
 if __name__ == '__main__':
-    main()
+    app()

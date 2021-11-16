@@ -7,7 +7,7 @@ from scipy.sparse.csr import csr_matrix
 import pandas as pd
 
 
-__all__ = ["read_mtx"]
+__all__ = ["read_mtx", "read_folder"]
 
 
 def _get_mtx_body(rows, decode=None, print_header=True):
@@ -61,11 +61,12 @@ def _parse_mtx(mtx_file_name):
                 rows = fn.readlines()
                 body, header = _get_mtx_body(rows, decode="utf-8")
                 n_rows, n_cols = header[0], header[1]
+                is_dense = False
             else:
                 body = pd.DataFrame([f.decode("utf-8").strip().split("," if sf == ".csv" else "\t")
                                      for f in fn.readlines()]).iloc[1:, 1:].values
                 n_rows, n_cols = body.shape
-        is_dense = False
+                is_dense = True
     else:
         raise ValueError("The suffix of this file is not valid")
     return body, is_dense, n_rows, n_cols
@@ -105,3 +106,21 @@ def read_mtx(mtx_file_name,
         data = body
     df = pd.DataFrame(index=genes, columns=barcodes, data=data)
     return df
+
+
+def read_folder(file_dir,
+                matrix_fn = "matrix",
+                gene_fn = "genes",
+                barcodes_fn = "barcodes"):
+    dir_path = Path(file_dir)
+    fn_dic = {fn: None for fn in [matrix_fn, gene_fn, barcodes_fn]}
+    if not dir_path.is_dir():
+        raise ValueError("Path is not exist or is not a folder path")
+    for fn in dir_path.iterdir():
+        for k in fn_dic:
+            if k in fn.name:
+                fn_dic[k] = fn
+
+    return read_mtx(mtx_file_name=(dir_path / fn_dic[matrix_fn]).name,
+                    gene_file_name=(dir_path / fn_dic[gene_fn]).name,
+                    barcode_file_name=(dir_path / fn_dic[barcodes_fn]).name)

@@ -7,7 +7,7 @@ DESCRIPTION = "scTenifoldpy"
 
 PKGS = ["scTenifold"]
 PKG_NAME = "scTenifoldpy"
-PKG_VERSION = '0.1.0-beta'
+PKG_VERSION = '0.1.0'
 
 MAINTAINER = 'Yu-Te Lin'
 MAINTAINER_EMAIL = 'qwerty239qwe@gmail.com'
@@ -27,7 +27,7 @@ INSTALL_REQUIRES = [
         "numpy~=1.20.3",
         "scipy~=1.6.3",
         "setuptools~=56.2.0",
-        "click~=8.0.1",
+        "typer~=0.4.0",
         "PyYAML~=5.4.1",
         "ray~=1.8.0",
         "scikit-learn~=0.24.2",
@@ -56,8 +56,7 @@ setup(
     install_requires=INSTALL_REQUIRES,
     entry_points={
         "console_scripts": [
-            "sctenifold-net=scTenifold.build_net:main",
-            "sctenifold-config=scTenifold.build_net:main",
+            "scTenifold=scTenifold.__main__:app",
         ]
     },
 )

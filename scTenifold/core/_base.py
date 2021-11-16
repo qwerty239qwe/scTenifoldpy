@@ -14,7 +14,7 @@ from scTenifold.core._norm import cpm_norm
 from scTenifold.core._decomposition import tensor_decomp
 from scTenifold.core._ko import reconstruct_pcnets
 from scTenifold.plotting import plot_hist
-
+from scTenifold.data import read_folder
 
 __all__ = ["scTenifoldNet", "scTenifoldKnk"]
 
@@ -110,7 +110,7 @@ class scBase:
 
     @classmethod
     def list_kws(cls, step_name):
-        return {n: p.default for n, p in cls.kw_sigs[f"{step_name}_kws"].parameters.items()
+        return {n: p.default for n, p in cls.kw_sigs[f"{step_name}"].parameters.items()
                 if not (p.default is p.empty)}
 
     @staticmethod
@@ -245,8 +245,14 @@ class scTenifoldNet(scBase):
     def load_config(cls, config):
         x_data_path = Path(config.pop("x_data_path"))
         y_data_path = Path(config.pop("y_data_path"))
-        x_data, y_data = pd.read_csv(x_data_path, sep='\t' if x_data_path.suffix else ","), \
-                         pd.read_csv(y_data_path, sep='\t' if y_data_path.suffix else ",")
+        if x_data_path.is_dir():
+            x_data = read_folder(x_data_path)
+        else:
+            x_data = pd.read_csv(x_data_path, sep='\t' if x_data_path.suffix == ".tsv" else ",")
+        if y_data_path.is_dir():
+            y_data = read_folder(y_data_path)
+        else:
+            y_data = pd.read_csv(y_data_path, sep='\t' if y_data_path.suffix == ".tsv" else ",")
         return cls(x_data, y_data, **config)
 
     def save(self,
@@ -371,6 +377,23 @@ class scTenifoldKnk(scBase):
         self.ko_method = ko_method
         self.ko_kws = {} if ko_kws is None else ko_kws
 
+    @classmethod
+    def get_empty_config(cls):
+        config = {"data_path": None, "strict_lambda": 0,
+                  "ko_method": "default", "ko_genes": []}
+        for kw, sig in cls.kw_sigs.items():
+            config[kw] = cls.list_kws(kw)
+        return config
+
+    @classmethod
+    def load_config(cls, config):
+        data_path = Path(config.pop("data_path"))
+        if data_path.is_dir():
+            data = read_folder(data_path)
+        else:
+            data = pd.read_csv(data_path, sep='\t' if data_path.suffix == ".tsv" else ",")
+        return cls(data, **config)
+
     def save(self,
              file_dir: str,
              comps: Union[str, list] = "all",
@@ -381,7 +404,7 @@ class scTenifoldKnk(scBase):
                      ko_method=self.ko_method,
                      strict_lambda=self.strict_lambda, ko_genes=self.ko_genes)
 
-    def _get_ko_tensor(self):
+    def _get_ko_tensor(self, ko_genes, **kwargs):
         if self.ko_method == "default":
             self.tensor_dict["KO"] = self.tensor_dict["WT"].copy()
             self.tensor_dict["KO"].loc[self.ko_genes, :] = 0
@@ -390,8 +413,8 @@ class scTenifoldKnk(scBase):
             self.network_dict["KO"] = reconstruct_pcnets(self.network_dict["WT"],
                                                          self.QC_dict["WT"],
                                                          ko_gene_id=[self.QC_dict["WT"].index.get_loc(i)
-                                                                     for i in self.ko_genes],
-                                                         degree=self.ko_kws.get("degree"),
+                                                                     for i in ko_genes],
+                                                         degree=kwargs.get("degree"),
                                                          **self.nc_kws)
             self._tensor_decomp("KO", self.shared_gene_names, **self.td_kws)
             self.tensor_dict["KO"] = strict_direction(self.tensor_dict["KO"], self.strict_lambda).T
@@ -428,24 +451,25 @@ class scTenifoldKnk(scBase):
                 self.qc_kws["min_exp_avg"] = 0.05
             if "min_exp_sum" not in self.qc_kws:
                 self.qc_kws["min_exp_sum"] = 25
-            self._QC("WT", **self.qc_kws)
+            self._QC("WT", **(self.qc_kws if kwargs == {} else kwargs))
             # no norm
             print("finish QC: WT")
         elif step_name == "nc":
             self._make_networks("WT", self.QC_dict["WT"], **(self.nc_kws if kwargs == {} else kwargs))
             self.shared_gene_names = self.QC_dict["WT"].index.to_list()
         elif step_name == "td":
-            self._tensor_decomp("WT", self.shared_gene_names, **self.td_kws)
+            self._tensor_decomp("WT", self.shared_gene_names, **(self.td_kws if kwargs == {} else kwargs))
             self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T
         elif step_name == "ko":
             np.fill_diagonal(self.tensor_dict["WT"].values, 0)
-            self._get_ko_tensor()
+            self._get_ko_tensor(self.ko_genes if kwargs.get("ko_genes") is None else kwargs.get("ko_genes"),
+                                **(self.ko_kws if kwargs == {} else kwargs))
         elif step_name == "ma":
             self.manifold = manifold_alignment(self.tensor_dict["WT"],
                                                self.tensor_dict["KO"],
-                                               **self.ma_kws)
+                                               **(self.ma_kws if kwargs == {} else kwargs))
         elif step_name == "dr":
-            self.d_regulation = d_regulation(self.manifold)
+            self.d_regulation = d_regulation(self.manifold, **(self.dr_kws if kwargs == {} else kwargs))
         else:
             raise ValueError("No such step")
         print(f"process {step_name} finished in {time.perf_counter() - start_time} secs.")
