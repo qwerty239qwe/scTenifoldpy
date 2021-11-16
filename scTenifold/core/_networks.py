@@ -299,7 +299,7 @@ def manifold_alignment(X: pd.DataFrame,
     eg_vecs = eg_vecs[:, np.argsort(eg_vals[eg_vals >= tol], )[::-1]]
     return pd.DataFrame(eg_vecs[:, :d],
                         index=["X_{g}".format(g=g) for g in shared_genes]+["Y_{g}".format(g=g) for g in shared_genes],
-                        columns=["NLMA_{i}".format(i=i) for i in range(1, 1+d)])
+                        columns=["NLMA_{i}".format(i=i+1) for i in range(min(d, eg_vecs.shape[1]))])
 
 
 @timer
