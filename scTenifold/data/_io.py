@@ -56,9 +56,15 @@ def _parse_mtx(mtx_file_name):
     elif suffix == ".zip":
         archive = zipfile.ZipFile(mtx_file_name, 'r')
         with archive.open(archive.namelist()[0]) as fn:
-            rows = fn.readlines()
-            body, header = _get_mtx_body(rows, decode="utf-8")
-            n_rows, n_cols = header[0], header[1]
+            sf = Path(archive.namelist()[0]).suffix
+            if sf not in [".csv", ".tsv"]:
+                rows = fn.readlines()
+                body, header = _get_mtx_body(rows, decode="utf-8")
+                n_rows, n_cols = header[0], header[1]
+            else:
+                body = pd.DataFrame([f.decode("utf-8").strip().split("," if sf == ".csv" else "\t")
+                                     for f in fn.readlines()]).iloc[1:, 1:].values
+                n_rows, n_cols = body.shape
         is_dense = False
     else:
         raise ValueError("The suffix of this file is not valid")

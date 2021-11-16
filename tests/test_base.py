@@ -12,8 +12,8 @@ def test_scTenifoldNet():
     result = sc.build()
     print(result)
     assert isinstance(result, pd.DataFrame)
-    sc.save(file_dir=".")
-    sc2 = scTenifoldNet.load(file_dir=".")
+    sc.save(file_dir="./saved_net")
+    sc2 = scTenifoldNet.load(file_dir="./saved_net")
 
 
 def test_scTenifoldKnk_method1():
@@ -46,8 +46,7 @@ def test_scTenifoldKnk_method2():
     sc.run_step("ko", ko_genes=[sc.tensor_dict["WT"].index.to_list()[0]])
     sc.run_step("ma")
     sc.run_step("dr")
-    result = sc.build()
-    assert isinstance(result, pd.DataFrame)
+    assert isinstance(sc.d_regulation, pd.DataFrame)
 
 # data not uploaded yet
 # def test_scTenifoldNet_2(control_data, treated_data):
