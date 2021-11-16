@@ -7,9 +7,9 @@ config files
 ====
 First, you can generate a config file template by using this command:
 
-.. code-block:: bash
+.. code-block:: shell
 
-    python -m scTenifold config -t 1 -p ./folderToCreateConfig
+    python -m scTenifold config -t 1 -p ./net_config.yml
 
 Options:
   -t, --type INTEGER RANGE  Type, 1: scTenifoldNet, 2: scTenifoldKnk  [default: 1; 1<=x<=2]
@@ -24,9 +24,9 @@ run scTenifoldNet
 
 After editing the config file,
 
-.. code-block:: bash
+.. code-block:: shell
 
-    python -m scTenifold net -c ./config.yml -o ./outputs
+    python -m scTenifold net -c ./net_config.yml -o ./outputs
 
 Options:
   -c, --config TEXT  Loaded config file's path  [required]
@@ -37,9 +37,9 @@ Options:
 run scTenifoldKnk
 ====
 
-.. code-block:: bash
+.. code-block:: shell
 
-    python -m scTenifold knk -c ./config.yml -o ./outputs
+    python -m scTenifold knk -c ./knk_config.yml -o ./outputs
 
 Options:
   -c, --config TEXT  Loaded config file's path  [required]

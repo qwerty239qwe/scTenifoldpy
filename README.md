@@ -11,12 +11,12 @@ if you are using this in a scientific publication. Thank you!
 
 ### Installation
 ```
-pip install sctenifoldpy
+pip install scTenifoldpy
 ```
 
 
 ### Usages
-
+scTenifold can be imported as a normal Python package:
 #### scTenifoldNet
 ```python
 from scTenifold.data import get_test_df
@@ -37,7 +37,19 @@ sc = scTenifoldKnk(data=df,
                    ko_method="default",
                    ko_genes=["NG-1"],  # the gene you wants to knock out
                    qc_kws={"min_lib_size": 10, "min_percent": 0.001},
-                   # ko_kws={"degree": 10}
                    )
 result = sc.build()
 ```
+
+### Command Line tool
+Once the package is installed, users can use commandline tool to generate all the results <br>
+Use this command to create a config.yml file, 
+```shell
+python -m scTenifold config -t 1 -p ./net_config.yml
+```
+Next, open the config file, add data path, and edit the parameters.<br>
+Then use the command below to produce the results:
+```shell
+python -m scTenifold net -c ./net_config.yml -o ./output_folder
+```
+
