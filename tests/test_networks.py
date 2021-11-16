@@ -4,7 +4,7 @@ from functools import partial
 import numpy as np
 import scipy.stats as stats
 
-from scTenifold.core._networks import cal_pc_coefs
+from scTenifold.core._networks import cal_pc_coefs, make_networks
 from scTenifold.data import get_test_df
 
 
@@ -20,3 +20,9 @@ def test_cal_pc_coefs_stability():
     bs_2 = [p_(i) for i in range(df.shape[1])]
 
     assert all([stats.pearsonr(b1.flatten(), b2.flatten())[0] > 0.99 for b1, b2 in zip(bs, bs_2)])
+
+
+def test_pc_net():
+    df = get_test_df(n_genes=100)
+    make_networks(df, n_nets=3, n_samp_cells=100, n_cpus=1)
+    make_networks(df, n_nets=3, n_samp_cells=100, n_cpus=4)

@@ -9,6 +9,9 @@ import requests
 import pandas as pd
 
 
+from ._io import read_mtx
+
+
 _valid_ds_names = ["AD", "Nkx2_KO", "aging", "cetuximab", "dsRNA", "morphine"]
 _repo_url = "https://raw.githubusercontent.com/{owner}/scTenifold-data/master/{ds_name}"
 _repo_tree_url = "https://api.github.com/repos/{owner}/scTenifold-data/git/trees/main?recursive=1"
@@ -23,6 +26,13 @@ def fetch_and_extract(url, saved_path):
     zf = zipfile.ZipFile(BytesIO(content))
     with zf as f:
         f.extractall(saved_path)
+
+
+def download_url(url, save_path, chunk_size=128):
+    r = requests.get(url, stream=True)
+    with open(save_path, 'wb') as fd:
+        for chunk in r.iter_content(chunk_size=chunk_size):
+            fd.write(chunk)
 
 
 def list_data(owner="qwerty239qwe", return_list=True) -> Union[dict, List[str]]:
@@ -58,8 +68,7 @@ def list_data(owner="qwerty239qwe", return_list=True) -> Union[dict, List[str]]:
     ds_dic = {ds: {} for ds in ds_list}
     for k, v in lv1.items():
         ds_dic[re.findall(r"(.*)/", k)[0]][k] = v
-    result = {ds: tree[ds[ds.index(""):]] for ds in ds_list}
-    return result
+    return ds_dic
 
 
 def fetch_data(ds_name: str,
@@ -67,4 +76,22 @@ def fetch_data(ds_name: str,
                owner="qwerty239qwe") -> Dict[str, pd.DataFrame]:
     if not dataset_path.is_dir():
         dataset_path.mkdir(parents=True)
-    requests.get(_repo_tree_url.format(owner=owner)).json()
+    ds_dic = list_data(owner=owner, return_list=False)
+
+    result_df = {}
+
+    for lv_1, files in ds_dic[ds_name].items():
+        fn_names = {k: None for k in ["matrix", "genes", "barcodes"]}
+        for f in files:
+            if not (dataset_path / Path(lv_1)).is_dir():
+                (dataset_path / Path(lv_1)).mkdir(parents=True, exist_ok=True)
+            for fn_name in fn_names:
+                if fn_name in f:
+                    fn_names[fn_name] = f
+            if not (dataset_path / Path(f)).exists():
+                download_url(url=_repo_url.format(owner=owner, ds_name=f), save_path=(dataset_path / Path(f)))
+        result_df[re.findall(r".*/(.*)", lv_1)[0]] = read_mtx(mtx_file_name=str((dataset_path / Path(fn_names["matrix"]))),
+                                                              gene_file_name=str((dataset_path / Path(fn_names["genes"]))),
+                                                              barcode_file_name=str((dataset_path / Path(fn_names["barcodes"])))
+                                                              if fn_names["barcodes"] is not None else None) # optional
+    return result_df

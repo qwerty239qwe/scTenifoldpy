@@ -14,7 +14,8 @@ DEFAULT_NEG = ["IL2", "TNF"]
 
 
 def get_test_df(n_cells: int = 100,
-                n_genes: int = 1000):
+                n_genes: int = 1000,
+                random_state: int = None):
     """
     Function to generate test dataframe
 
@@ -24,14 +25,16 @@ def get_test_df(n_cells: int = 100,
         Number of cells in the generated df
     n_genes: default = 1000
         Number of genes in the generated df
+    random_state: default = None
+        Random seed of generated data, used the same seed to reproduce the same dataset
 
     Returns
     -------
     test_df: pd.DataFrame
         testing data
     """
-    data = np.random.default_rng().negative_binomial(20, 0.98,
-                                                     n_cells * n_genes).reshape(n_genes, n_cells)
+    data = np.random.default_rng(seed=random_state).negative_binomial(20, 0.98,
+                                                                      n_cells * n_genes).reshape(n_genes, n_cells)
     pseudo_gene_names = ["MT-{}".format(i) for i in range(1, 11)] + ["NG-{}".format(i) for i in range(1, n_genes - 9)]
     pseudo_cell_names = ["Cell-{}".format(i) for i in range(1, n_cells + 1)]
     return pd.DataFrame(data, index=pseudo_gene_names, columns=pseudo_cell_names)

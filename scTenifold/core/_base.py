@@ -19,11 +19,14 @@ __all__ = ["scTenifoldNet", "scTenifoldKnk"]
 
 
 class scBase:
+    cls_prop = ["shared_gene_names", "strict_lambda"]
+
     def __init__(self,
                  qc_kws=None,
                  nc_kws=None,
                  td_kws=None,
-                 ma_kws=None
+                 ma_kws=None,
+                 dr_kws=None
                  ):
         self.data_dict = {}
         self.QC_dict = {}
@@ -36,6 +39,7 @@ class scBase:
         self.nc_kws = {} if nc_kws is None else nc_kws
         self.td_kws = {} if td_kws is None else td_kws
         self.ma_kws = {} if ma_kws is None else ma_kws
+        self.dr_kws = {} if dr_kws is None else dr_kws
         self.step_comps = {"qc": self.QC_dict,
                            "nc": self.network_dict,
                            "td": self.tensor_dict,
@@ -51,6 +55,7 @@ class scBase:
             for d in file_dir.iterdir():
                 if d.is_file():
                     dic[d.stem] = pd.read_csv(d)
+            obj_name = "QC_dict"
         elif comp == "nc":
             dic = {}
             for d in file_dir.iterdir():
@@ -58,21 +63,24 @@ class scBase:
                     dic[d.stem] = []
                     nt = 0
                     while (d / Path(f"network_{nt}.npz")).exists():
-                        dic[d.stem].append(sparse.load_npz(d / Path("network_{nt}.npz")))
+                        dic[d.stem].append(sparse.load_npz(d / Path(f"network_{nt}.npz")))
                         nt += 1
+            obj_name = "network_dict"
         elif comp == "td":
             dic = {}
             for d in file_dir.iterdir():
                 if d.is_file():
                     dic[d.stem] = sparse.load_npz(d).toarray()
+            obj_name = "tensor_dict"
         elif comp in ["ma", "dr"]:
             dic = {}
             for d in file_dir.iterdir():
                 if d.is_file():
                     dic[d.stem] = pd.read_csv(d)
+            obj_name = "manifold" if comp == "ma" else "d_regulation"
         else:
-            raise ValueError()
-        return dic
+            raise ValueError("The component is not a valid one")
+        return dic, obj_name
 
     @classmethod
     def load(cls,
@@ -83,12 +91,15 @@ class scBase:
         with open(kw_path, "r") as f:
             kws = json.load(f)
         kwargs.update(kws)
-        shared_gene_names = kwargs.pop("shared_gene_names") if "shared_gene_names" in kwargs else None
-        ins = cls.__init__(**kwargs)
+        kwarg_props = {k: kwargs.pop(k)
+                       for k in cls.cls_prop if k in kwargs}
+        ins = cls(**kwargs)
         for name, obj in ins.step_comps.items():
             if (file_dir / Path(name)).exists():
-                setattr(ins, name, cls._load_comp(file_dir / Path(name), name))
-        ins.shared_gene_names = shared_gene_names
+                dic, name = cls._load_comp(file_dir / Path(name), name)
+                setattr(ins, name, dic)
+        for k, prop in kwarg_props.items():
+            setattr(ins, k, prop)
         return ins
 
     @staticmethod
@@ -98,20 +109,20 @@ class scBase:
             grps |= set(kw.keys())
         return list(grps)
 
-    def _QC(self, label):
+    def _QC(self, label, **kwargs):
         self.QC_dict[label] = self.data_dict[label].copy()
         self.QC_dict[label].loc[:, "gene"] = self.QC_dict[label].index
         self.QC_dict[label] = self.QC_dict[label].groupby(by="gene").sum()
-        self.QC_dict[label] = sc_QC(self.QC_dict[label], **self.qc_kws)
+        self.QC_dict[label] = sc_QC(self.QC_dict[label], **kwargs)
         plot_hist(self.QC_dict[label], label)
 
     def _make_networks(self, label, data, **kwargs):
         self.network_dict[label] = make_networks(data, **kwargs)
 
-    def _tensor_decomp(self, label, gene_names):
+    def _tensor_decomp(self, label, gene_names, **kwargs):
         self.tensor_dict[label] = tensor_decomp(np.concatenate([np.expand_dims(network.toarray(), -1)
                                                                 for network in self.network_dict[label]], axis=-1),
-                                                gene_names, **self.td_kws)
+                                                gene_names, **kwargs)
 
     def _save_comp(self,
                    file_dir: Path,
@@ -125,6 +136,7 @@ class scBase:
                     print(f"{label_fn.name} has been saved successfully.")
         elif comp == "nc":
             for label, obj in self.step_comps["nc"].items():
+                (file_dir / Path(f"{label}")).mkdir(parents=True, exist_ok=True)
                 for i, npx in enumerate(obj):
                     file_name = file_dir / Path(f"{label}/network_{i}").with_suffix(".npz")
                     sparse.save_npz(file_name, npx)
@@ -161,12 +173,11 @@ class scBase:
             subdir = dir_path / Path(c)
             subdir.mkdir(parents=True, exist_ok=True)
             self._save_comp(subdir, c, verbose)
-        configs = {"qc": self.qc_kws, "nc": self.nc_kws, "td": self.td_kws, "ma": self.ma_kws}
+        configs = {"qc_kws": self.qc_kws, "nc_kws": self.nc_kws, "td_kws": self.td_kws, "ma_kws": self.ma_kws}
         if hasattr(self, "ko_kws"):
-            configs.update({"ko": getattr(self, "ko_kws")})
+            configs.update({"ko_kws": getattr(self, "ko_kws")})
         if hasattr(self, "dr_kws"):
-            configs.update({"dr": getattr(self, "dr_kws")})
-
+            configs.update({"dr_kws": getattr(self, "dr_kws")})
         if self.shared_gene_names is not None:
             configs.update({"shared_gene_names": self.shared_gene_names})
         configs.update(kwargs)
@@ -183,7 +194,8 @@ class scTenifoldNet(scBase):
                  qc_kws: dict = None,
                  nc_kws: dict = None,
                  td_kws: dict = None,
-                 ma_kws: dict = None):
+                 ma_kws: dict = None,
+                 dr_kws: dict = None):
         """
 
         Parameters
@@ -205,7 +217,7 @@ class scTenifoldNet(scBase):
         ma_kws: dict
             Keyword arguments of the manifold alignment step
         """
-        super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws)
+        super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws, dr_kws=dr_kws)
         self.x_label, self.y_label = x_label, y_label
         self.data_dict[x_label] = x_data
         self.data_dict[y_label] = y_data
@@ -247,17 +259,19 @@ class scTenifoldNet(scBase):
         start_time = time.perf_counter()
         if step_name == "qc":
             for label in self.data_dict:
-                self._QC(label)
+                self._QC(label,
+                         **(self.qc_kws if kwargs == {} else kwargs))
                 self._norm(label)
                 print("finish QC:", label)
         elif step_name == "nc":
             x_gene_names, y_gene_names = set(self.QC_dict[self.x_label].index), set(self.QC_dict[self.y_label].index)
             self.shared_gene_names = list(x_gene_names & y_gene_names)
             for label, qc_data in self.QC_dict.items():
-                self._make_networks(label, data=qc_data.loc[self.shared_gene_names, :], **self.nc_kws)
+                self._make_networks(label, data=qc_data.loc[self.shared_gene_names, :],
+                                    **(self.nc_kws if kwargs == {} else kwargs))
         elif step_name == "td":
             for label, qc_data in self.QC_dict.items():
-                self._tensor_decomp(label, self.shared_gene_names)
+                self._tensor_decomp(label, self.shared_gene_names, **(self.td_kws if kwargs == {} else kwargs))
             self.tensor_dict[self.x_label] = (self.tensor_dict[self.x_label] + self.tensor_dict[self.x_label].T) / 2
             self.tensor_dict[self.y_label] = (self.tensor_dict[self.y_label] + self.tensor_dict[self.y_label].T) / 2
         elif step_name == "ma":
@@ -265,7 +279,7 @@ class scTenifoldNet(scBase):
                                                self.tensor_dict[self.y_label],
                                                **(self.ma_kws if kwargs == {} else kwargs))
         elif step_name == "dr":
-            self.d_regulation = d_regulation(self.manifold)
+            self.d_regulation = d_regulation(self.manifold, **(self.dr_kws if kwargs == {} else kwargs))
         else:
             raise ValueError("This step name is not valid, please choose from qc, nc, td, ma, dr")
 
@@ -285,7 +299,6 @@ class scTenifoldNet(scBase):
         self.run_step("td")
         self.run_step("ma")
         self.run_step("dr")
-
         return self.d_regulation
 
 
@@ -299,6 +312,7 @@ class scTenifoldKnk(scBase):
                  nc_kws=None,
                  td_kws=None,
                  ma_kws=None,
+                 dr_kws=None,
                  ko_kws=None):
         """
 
@@ -323,7 +337,7 @@ class scTenifoldKnk(scBase):
         ko_kws: dict
             Keyword arguments of the Knock out step
         """
-        super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws)
+        super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws, dr_kws=dr_kws)
         self.data_dict["WT"] = data
         self.strict_lambda = strict_lambda
         self.ko_genes = ko_genes if ko_genes is not None else []
@@ -352,7 +366,7 @@ class scTenifoldKnk(scBase):
                                                                      for i in self.ko_genes],
                                                          degree=self.ko_kws.get("degree"),
                                                          **self.nc_kws)
-            self._tensor_decomp("KO", self.shared_gene_names)
+            self._tensor_decomp("KO", self.shared_gene_names, **self.td_kws)
             self.tensor_dict["KO"] = strict_direction(self.tensor_dict["KO"], self.strict_lambda).T
             np.fill_diagonal(self.tensor_dict["KO"].values, 0)
         else:
@@ -387,14 +401,14 @@ class scTenifoldKnk(scBase):
                 self.qc_kws["min_exp_avg"] = 0.05
             if "min_exp_sum" not in self.qc_kws:
                 self.qc_kws["min_exp_sum"] = 25
-            self._QC("WT")
+            self._QC("WT", **self.qc_kws)
             # no norm
             print("finish QC: WT")
         elif step_name == "nc":
-            self._make_networks("WT", self.QC_dict["WT"], **self.nc_kws)
+            self._make_networks("WT", self.QC_dict["WT"], **(self.nc_kws if kwargs == {} else kwargs))
             self.shared_gene_names = self.QC_dict["WT"].index.to_list()
         elif step_name == "td":
-            self._tensor_decomp("WT", self.shared_gene_names)
+            self._tensor_decomp("WT", self.shared_gene_names, **self.td_kws)
             self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T
         elif step_name == "ko":
             np.fill_diagonal(self.tensor_dict["WT"].values, 0)

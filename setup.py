@@ -57,6 +57,7 @@ setup(
     entry_points={
         "console_scripts": [
             "sctenifold-net=scTenifold.build_net:main",
+            "sctenifold-config=scTenifold.build_net:main",
         ]
     },
 )

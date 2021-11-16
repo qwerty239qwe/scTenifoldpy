@@ -50,15 +50,13 @@ def _check_pcNet_inp(data, selected_samples):
     return Z.values
 
 
-@ray.remote
-def pcNet(data: pd.DataFrame,  # genes x cells
-          selected_samples,
-          n_comp: int = 3,
-          scale_scores: bool = True,
-          symmetric: bool = False,
-          q: float = 0.,
-          random_state: int = 42):
-
+def pc_net_calc(data: pd.DataFrame,  # genes x cells
+                selected_samples,
+                n_comp: int = 3,
+                scale_scores: bool = True,
+                symmetric: bool = False,
+                q: float = 0.,
+                random_state: int = 42):
     assert 2 < n_comp <= data.shape[0]
     assert 0 <= q <= 1
     X = _check_pcNet_inp(data, selected_samples)
@@ -80,6 +78,39 @@ def pcNet(data: pd.DataFrame,  # genes x cells
     return A
 
 
+@ray.remote
+def pc_net_parallelized(data: pd.DataFrame,  # genes x cells
+                        selected_samples,
+                        n_comp: int = 3,
+                        scale_scores: bool = True,
+                        symmetric: bool = False,
+                        q: float = 0.,
+                        random_state: int = 42):
+    return pc_net_calc(data=data,
+                       selected_samples=selected_samples,
+                       n_comp=n_comp,
+                       scale_scores=scale_scores,
+                       symmetric=symmetric,
+                       q=q,
+                       random_state=random_state)
+
+
+def pc_net_single(data: pd.DataFrame,  # genes x cells
+                  selected_samples,
+                  n_comp: int = 3,
+                  scale_scores: bool = True,
+                  symmetric: bool = False,
+                  q: float = 0.,
+                  random_state: int = 42):
+    return pc_net_calc(data=data,
+                       selected_samples=selected_samples,
+                       n_comp=n_comp,
+                       scale_scores=scale_scores,
+                       symmetric=symmetric,
+                       q=q,
+                       random_state=random_state)
+
+
 @timer
 def make_networks(data: pd.DataFrame,
                   n_nets: int = 10,
@@ -89,6 +120,7 @@ def make_networks(data: pd.DataFrame,
                   symmetric: bool = False,
                   q: float = 0.95,
                   random_state: int = 42,
+                  n_cpus: int = -1,
                   **kwargs
                   ) -> List[coo_matrix]:
     """
@@ -112,6 +144,8 @@ def make_networks(data: pd.DataFrame,
         The quantile value used to determine PCNet's threshold
     random_state: int, default = 42
         Random seed of constructing PCNets
+    n_cpus: int, default = -1
+
     kwargs
         Keyword arguments
 
@@ -127,23 +161,39 @@ def make_networks(data: pd.DataFrame,
     networks = []
     sel_samples = []
     tasks = []
-    if ray.is_initialized():
-        ray.shutdown()
-    ray.init()
-    # dask.config.set(scheduler=ray_dask_get)
-    Z_data = ray.put(data)
-    for net in range(n_nets):
-        sample = rng.choice(n_cells, n_samp_cells, replace=True) if n_samp_cells is not None else np.arange(n_cells)
-        sel_samples.append(sample)
-        tasks.append(pcNet.remote(Z_data,
-                                  selected_samples=sample,
-                                  n_comp=n_comp,
-                                  scale_scores=scale_scores,
-                                  symmetric=symmetric,
-                                  q=q,
-                                  random_state=random_state))
-    results = ray.get(tasks)
-    del Z_data
+
+    if n_cpus != 1:
+        if n_cpus == -1:
+            n_cpus = None
+        if ray.is_initialized():
+            ray.shutdown()
+        ray.init(num_cpus=n_cpus)
+        # dask.config.set(scheduler=ray_dask_get)
+        Z_data = ray.put(data)
+        for net in range(n_nets):
+            sample = rng.choice(n_cells, n_samp_cells, replace=True) if n_samp_cells is not None else np.arange(n_cells)
+            sel_samples.append(sample)
+            tasks.append(pc_net_parallelized.remote(Z_data,
+                                                    selected_samples=sample,
+                                                    n_comp=n_comp,
+                                                    scale_scores=scale_scores,
+                                                    symmetric=symmetric,
+                                                    q=q,
+                                                    random_state=random_state))
+        results = ray.get(tasks)
+        del Z_data
+    else:
+        results = []
+        for net in range(n_nets):
+            sample = rng.choice(n_cells, n_samp_cells, replace=True) if n_samp_cells is not None else np.arange(n_cells)
+            sel_samples.append(sample)
+            results.append(pc_net_single(data,
+                                         selected_samples=sample,
+                                         n_comp=n_comp,
+                                         scale_scores=scale_scores,
+                                         symmetric=symmetric,
+                                         q=q,
+                                         random_state=random_state))
     for i, pc_net in enumerate(results):
         Z = data.iloc[:, sel_samples[i]]
         sel_genes = (Z.sum(axis=1) > 0)
@@ -156,7 +206,8 @@ def make_networks(data: pd.DataFrame,
                                                          columns=sel_genes.index)
         networks.append(coo_matrix(temp_df.fillna(0.0).values))
     del results
-    ray.shutdown()
+    if ray.is_initialized():
+        ray.shutdown()
     return networks
 
 
@@ -288,7 +339,8 @@ def d_regulation(data,
     all_gene_names = data.index.to_list()
     gene_names = [g[2:] for g in all_gene_names if "X_" == g[:2]]
     assert len(gene_names) * 2 == len(all_gene_names), 'Number of identified and expected genes are not the same'
-    assert all(["Y_" + g == y for g, y in zip(gene_names, all_gene_names[len(gene_names):])]), 'Genes are not ordered as expected. X_ genes should be followed by Y_ genes in the same order'
+    assert all(["Y_" + g == y for g, y in zip(gene_names, all_gene_names[len(gene_names):])]), \
+        'Genes are not ordered as expected. X_ genes should be followed by Y_ genes in the same order'
     d_metrics = np.array([np.linalg.norm((data.iloc[x, :] - data.iloc[y, :]).values)
                           for x, y in zip(range(len(gene_names)),
                                           range(len(gene_names), len(all_gene_names)))])
