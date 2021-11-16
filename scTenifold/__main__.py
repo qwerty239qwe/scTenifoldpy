@@ -4,9 +4,22 @@ import yaml
 from scTenifold.data import read_mtx
 from scTenifold import scTenifoldNet, scTenifoldKnk
 
+app = typer.Typer()
 
-@click.command()
-@click.argument("-c", "--config", "config_file_path")
+@app.command(name="config")
+def get_config_file(
+        config_type: int = typer.Option(1, "--type", "-t",
+                                        help="Type, 1: scTenifoldNet, 2: scTenifoldKnk",
+                                        min=1, max=2),
+        file_path: str = typer.Option(
+                        ".",
+                        "--path",
+                        "-p",
+                        help="Path to generate empty config file")):
+    config = scTenifoldNet.get_empty_config()
+
+
+@app.command(name="net")
 def main(config_file_path):
     with open(Path(config_file_path), "r") as f:
         data = yaml.safe_load(f)

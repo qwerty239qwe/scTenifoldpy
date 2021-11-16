@@ -2,6 +2,7 @@ import json
 import time
 from pathlib import Path
 from typing import Optional, Union
+import inspect
 
 import numpy as np
 import pandas as pd
@@ -20,6 +21,11 @@ __all__ = ["scTenifoldNet", "scTenifoldKnk"]
 
 class scBase:
     cls_prop = ["shared_gene_names", "strict_lambda"]
+    kw_sigs = {"qc_kws": inspect.signature(sc_QC),
+               "nc_kws": inspect.signature(make_networks),
+               "td_kws": inspect.signature(tensor_decomp),
+               "ma_kws": inspect.signature(manifold_alignment),
+               "dr_kws": inspect.signature(d_regulation)}
 
     def __init__(self,
                  qc_kws=None,
@@ -101,6 +107,11 @@ class scBase:
         for k, prop in kwarg_props.items():
             setattr(ins, k, prop)
         return ins
+
+    @classmethod
+    def list_kws(cls, step_name):
+        return {n: p.default for n, p in cls.kw_sigs[f"{step_name}_kws"].parameters.items()
+                if not (p.default is p.empty)}
 
     @staticmethod
     def _infer_groups(*args):
@@ -221,6 +232,22 @@ class scTenifoldNet(scBase):
         self.x_label, self.y_label = x_label, y_label
         self.data_dict[x_label] = x_data
         self.data_dict[y_label] = y_data
+
+    @classmethod
+    def get_empty_config(cls):
+        config = {"x_data_path": None, "y_data_path": None,
+                  "x_label": None, "y_label": None}
+        for kw, sig in cls.kw_sigs.items():
+            config[kw] = cls.list_kws(kw)
+        return config
+
+    @classmethod
+    def load_config(cls, config):
+        x_data_path = Path(config.pop("x_data_path"))
+        y_data_path = Path(config.pop("y_data_path"))
+        x_data, y_data = pd.read_csv(x_data_path, sep='\t' if x_data_path.suffix else ","), \
+                         pd.read_csv(y_data_path, sep='\t' if y_data_path.suffix else ",")
+        return cls(x_data, y_data, **config)
 
     def save(self,
              file_dir: str,
