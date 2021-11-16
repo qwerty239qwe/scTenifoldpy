@@ -1,0 +1,5 @@
+nbsphinx
+ipykernel
+sphinxcontrib-napoleon
+sphinx
+ipykernel
