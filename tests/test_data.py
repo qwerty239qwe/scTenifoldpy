@@ -21,5 +21,5 @@ def test_featch_dsRNA_datasets():
     dsRNA = fetch_data("dsRNA")
 
 
-def test_featch_cetuximab_datasets():
-    cetuximab = fetch_data("cetuximab")
+# def test_featch_cetuximab_datasets():
+#     cetuximab = fetch_data("cetuximab")
