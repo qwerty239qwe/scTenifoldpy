@@ -32,12 +32,13 @@ def plot_network_graph(network: np.ndarray,
     network[network < weight_thres] = 0
     valid_rows, valid_cols = (network.sum(axis=1) > con_thres), (network.sum(axis=0) > con_thres)
     network = network[valid_rows,:][:, valid_cols]
-    print(network.shape)
     G = nx.from_numpy_array(network)
     pos = nx.kamada_kawai_layout(G)
     fig, ax = plt.subplots(figsize=(8, 8))
-    nx.draw_networkx_edges(G, pos, nodelist=[0], alpha=0.4)
+    nx.draw_networkx_edges(G, pos,
+                           ax=ax, nodelist=[0], alpha=0.4)
     nx.draw_networkx_nodes(G, pos,
+                           ax=ax,
                            node_size=10,
                            cmap=plt.cm.Reds_r)
     plt.show()
@@ -123,16 +124,22 @@ def plot_embedding(df,
         A dataframe to perform dimension reduction
     groups: dict(str, list)
         A dict indicating the groups
-    method
-    plot_2D
-    figsize
-    title
-    palette
-    kwargs
+    method: str
+        The name of used method, could be: PCA, TSNE, UMAP, Isomap, MDS, SpectralEmbedding, LocallyLinearEmbedding
+    plot_2D: bool
+        Draw a 2D or 3D (if false) plot
+    figsize: tuple of int
+        The figure size of the plot: (width, height)
+    title: str
+        The subplot's title
+    palette: str
+        The name of used seaborn color palette,
+        reference: https://seaborn.pydata.org/generated/seaborn.color_palette.html
+    kwargs: keyword arguments of doing dimension reduction
 
     Returns
     -------
-
+    None
     """
 
     if method == "PCA":

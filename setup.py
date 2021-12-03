@@ -1,13 +1,13 @@
 import pathlib
-from setuptools import setup
+from setuptools import setup, find_packages
 
 HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
 DESCRIPTION = "scTenifoldpy"
 
-PKGS = ["scTenifold"]
+PKGS = find_packages()
 PKG_NAME = "scTenifoldpy"
-PKG_VERSION = '0.1.0'
+PKG_VERSION = '0.1.1'
 
 MAINTAINER = 'Yu-Te Lin'
 MAINTAINER_EMAIL = 'qwerty239qwe@gmail.com'

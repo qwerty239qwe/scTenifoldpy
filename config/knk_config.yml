@@ -1,0 +1,33 @@
+data_path: null
+dr_kws:
+  ascending: true
+  sorted_by: p-value
+ko_genes: []
+ko_method: default
+ma_kws:
+  d: 30
+  tol: 1.0e-08
+nc_kws:
+  n_comp: 3
+  n_cpus: -1
+  n_nets: 10
+  n_samp_cells: 500
+  q: 0.95
+  random_state: 42
+  scale_scores: true
+  symmetric: false
+qc_kws:
+  max_mito_ratio: 0.1
+  min_exp_avg: 0
+  min_exp_sum: 0
+  min_lib_size: 1000
+  min_percent: 0.05
+  remove_outlier_cells: true
+strict_lambda: 0
+td_kws:
+  K: 5
+  max_iter: 1000
+  method: parafac
+  n_decimal: 1
+  random_state: 42
+  tol: 1.0e-06
