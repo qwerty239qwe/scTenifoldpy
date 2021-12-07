@@ -7,7 +7,7 @@ DESCRIPTION = "scTenifoldpy"
 
 PKGS = find_packages()
 PKG_NAME = "scTenifoldpy"
-PKG_VERSION = '0.1.1'
+PKG_VERSION = '0.1.2'
 
 MAINTAINER = 'Yu-Te Lin'
 MAINTAINER_EMAIL = 'qwerty239qwe@gmail.com'
