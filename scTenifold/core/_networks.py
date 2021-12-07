@@ -294,9 +294,9 @@ def manifold_alignment(X: pd.DataFrame,
                          np.concatenate((w_XY.T, w_Y), axis=1)), axis=0)
     np.fill_diagonal(W, 0)
     np.fill_diagonal(W, -W.sum(axis=0))
-    eg_vals, eg_vecs = scipy.sparse.linalg.eigs(W, k=d * 2, which="SR")
+    eg_vals, eg_vecs = scipy.sparse.linalg.eigs(W, k=d * 2, which="SR", tol=1e-14)
     eg_vecs = eg_vecs[:, eg_vals >= tol]
-    eg_vecs = eg_vecs[:, np.argsort(eg_vals[eg_vals >= tol], )[::-1]]
+    eg_vecs = eg_vecs[:, np.argsort(eg_vals[eg_vals >= tol], )]
     return pd.DataFrame(eg_vecs[:, :d],
                         index=["X_{g}".format(g=g) for g in shared_genes]+["Y_{g}".format(g=g) for g in shared_genes],
                         columns=["NLMA_{i}".format(i=i+1) for i in range(min(d, eg_vecs.shape[1]))])
@@ -319,9 +319,10 @@ def d_regulation(data,
     ascending: bool or list of bool, default = True
         Sorted ascending (otherwise descending)
     **kwargs
-        Keyword arguments for statistic analyses,
+        Keyword arguments for statistic analyses, and n_ko_genes (if any)
             boxcox_kws - kwargs for boxcox test
             chi2_kws - kwargs for chi-square test
+            n_ko_genes - int, indicating the number of KO genes
 
     Examples
     ---------
@@ -349,13 +350,17 @@ def d_regulation(data,
     if "df" not in chi2_kws:
         chi2_kws["df"] = 1
     try:
-        t_d_metrics = np.array(stats.boxcox(d_metrics[d_metrics > 0], **boxcox_kws)[0])
+        t, max_log = stats.boxcox(d_metrics[d_metrics > 0], **boxcox_kws)
+        t_d_metrics = np.array(t)
+        if max_log < 0:
+            t_d_metrics = 1 / t_d_metrics
     except:
         warn("cannot find the box-cox transformed values")
         t_d_metrics = d_metrics
 
     z_scores = (t_d_metrics - t_d_metrics.mean()) / t_d_metrics.std()
-    expected_val = np.mean(np.power(d_metrics, 2))
+    n_ko_genes = kwargs.get("n_ko_genes") if "n_ko_genes" in kwargs else 0
+    expected_val = np.mean(np.power(d_metrics[np.argsort(d_metrics)[::-1][n_ko_genes:]], 2))
     FC = np.power(d_metrics, 2) / expected_val
     p_values = 1 - stats.chi2.cdf(FC, **chi2_kws)
     p_adj = cal_fdr(p_values)
