@@ -350,7 +350,10 @@ def d_regulation(data,
     if "df" not in chi2_kws:
         chi2_kws["df"] = 1
     try:
-        t_d_metrics = np.array(stats.boxcox(d_metrics[d_metrics > 0], **boxcox_kws)[0])
+        t, max_log = stats.boxcox(d_metrics[d_metrics > 0], **boxcox_kws)
+        t_d_metrics = np.array(t)
+        if max_log < 0:
+            t_d_metrics = 1 / t_d_metrics
     except:
         warn("cannot find the box-cox transformed values")
         t_d_metrics = d_metrics
