@@ -370,6 +370,7 @@ class scTenifoldKnk(scBase):
         ko_kws: dict
             Keyword arguments of the Knock out step
         """
+        ma_kws = {"d": 2} if ma_kws is None else ma_kws
         super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws, dr_kws=dr_kws)
         self.data_dict["WT"] = data
         self.strict_lambda = strict_lambda
@@ -408,7 +409,6 @@ class scTenifoldKnk(scBase):
         if self.ko_method == "default":
             self.tensor_dict["KO"] = self.tensor_dict["WT"].copy()
             self.tensor_dict["KO"].loc[ko_genes, :] = 0
-            self.tensor_dict["KO"].loc[:, ko_genes] = 0
         elif self.ko_method == "propagation":
             print(self.QC_dict["WT"].index)
             self.network_dict["KO"] = reconstruct_pcnets(self.network_dict["WT"],
