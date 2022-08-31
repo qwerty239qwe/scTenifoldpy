@@ -120,12 +120,13 @@ class scBase:
             grps |= set(kw.keys())
         return list(grps)
 
-    def _QC(self, label, **kwargs):
+    def _QC(self, label, plot: bool = True, **kwargs):
         self.QC_dict[label] = self.data_dict[label].copy()
         self.QC_dict[label].loc[:, "gene"] = self.QC_dict[label].index
         self.QC_dict[label] = self.QC_dict[label].groupby(by="gene").sum()
         self.QC_dict[label] = sc_QC(self.QC_dict[label], **kwargs)
-        plot_hist(self.QC_dict[label], label)
+        if plot:
+            plot_hist(self.QC_dict[label], label)
 
     def _make_networks(self, label, data, **kwargs):
         self.network_dict[label] = make_networks(data, **kwargs)
