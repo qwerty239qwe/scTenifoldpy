@@ -161,7 +161,7 @@ class scBase:
                 sparse.save_npz(label_fn, sp)
                 if verbose:
                     print(f"{label_fn.name} has been saved successfully.")
-        elif comp in ["ma", "td"]:
+        elif comp in ["ma", "dr"]:
             if isinstance(self.step_comps["ma"], pd.DataFrame):
                 fn = (file_dir / Path("manifold_alignment" if comp == "ma" else "d_regulation")).with_suffix(".csv")
                 self.step_comps[comp].to_csv(fn)
