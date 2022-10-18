@@ -57,7 +57,6 @@ def test_scTenifoldKnk_method1():
     assert Path("./saved_knk/qc/WT.csv").is_file()
 
     assert Path("./saved_knk/nc/WT/network_0.npz").is_file()
-    assert Path("./saved_knk/nc/KO/network_0.npz").is_file()
 
     assert Path("./saved_knk/td/WT.npz").is_file()
     assert Path("./saved_knk/td/KO.npz").is_file()

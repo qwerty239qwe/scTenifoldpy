@@ -477,8 +477,10 @@ class scTenifoldKnk(scBase):
             self.manifold = manifold_alignment(self.tensor_dict["WT"],
                                                self.tensor_dict["KO"],
                                                **(self.ma_kws if kwargs == {} else kwargs))
+            self.step_comps["ma"] = self.manifold
         elif step_name == "dr":
             self.d_regulation = d_regulation(self.manifold, **(self.dr_kws if kwargs == {} else kwargs))
+            self.step_comps["dr"] = self.d_regulation
         else:
             raise ValueError("No such step")
         print(f"process {step_name} finished in {time.perf_counter() - start_time} secs.")
