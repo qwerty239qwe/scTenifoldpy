@@ -7,7 +7,7 @@ DESCRIPTION = "scTenifoldpy"
 
 PKGS = find_packages()
 PKG_NAME = "scTenifoldpy"
-PKG_VERSION = '0.1.2'
+PKG_VERSION = '0.1.3'
 
 MAINTAINER = 'Yu-Te Lin'
 MAINTAINER_EMAIL = 'qwerty239qwe@gmail.com'
@@ -37,6 +37,7 @@ INSTALL_REQUIRES = [
         "matplotlib~=3.4.3",
         "networkx~=2.6.3",
         "scanpy~=1.7.2",
+        "protobuf==3.20.*"
     ]
 
 # This call to setup() does all the work
