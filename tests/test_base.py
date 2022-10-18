@@ -55,7 +55,6 @@ def test_scTenifoldKnk_method1():
     sc2 = scTenifoldKnk.load(file_dir="./saved_knk")
     np.array_equal(sc.tensor_dict["WT"], sc2.tensor_dict["WT"])
     assert Path("./saved_knk/qc/WT.csv").is_file()
-    assert Path("./saved_knk/qc/KO.csv").is_file()
 
     assert Path("./saved_knk/nc/WT/network_0.npz").is_file()
     assert Path("./saved_knk/nc/KO/network_0.npz").is_file()
