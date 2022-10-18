@@ -161,8 +161,8 @@ class scBase:
                 sparse.save_npz(label_fn, sp)
                 if verbose:
                     print(f"{label_fn.name} has been saved successfully.")
-        elif comp in ["ma", "td"]:
-            if isinstance(self.step_comps["ma"], pd.DataFrame):
+        elif comp in ["ma", "dr"]:
+            if isinstance(self.step_comps[comp], pd.DataFrame):
                 fn = (file_dir / Path("manifold_alignment" if comp == "ma" else "d_regulation")).with_suffix(".csv")
                 self.step_comps[comp].to_csv(fn)
                 if verbose:
@@ -312,8 +312,10 @@ class scTenifoldNet(scBase):
             self.manifold = manifold_alignment(self.tensor_dict[self.x_label],
                                                self.tensor_dict[self.y_label],
                                                **(self.ma_kws if kwargs == {} else kwargs))
+            self.step_comps["ma"] = self.manifold
         elif step_name == "dr":
             self.d_regulation = d_regulation(self.manifold, **(self.dr_kws if kwargs == {} else kwargs))
+            self.step_comps["dr"] = self.d_regulation
         else:
             raise ValueError("This step name is not valid, please choose from qc, nc, td, ma, dr")
 
@@ -475,8 +477,10 @@ class scTenifoldKnk(scBase):
             self.manifold = manifold_alignment(self.tensor_dict["WT"],
                                                self.tensor_dict["KO"],
                                                **(self.ma_kws if kwargs == {} else kwargs))
+            self.step_comps["ma"] = self.manifold
         elif step_name == "dr":
             self.d_regulation = d_regulation(self.manifold, **(self.dr_kws if kwargs == {} else kwargs))
+            self.step_comps["dr"] = self.d_regulation
         else:
             raise ValueError("No such step")
         print(f"process {step_name} finished in {time.perf_counter() - start_time} secs.")
