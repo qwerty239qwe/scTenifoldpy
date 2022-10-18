@@ -25,17 +25,17 @@ def test_scTenifoldNet_skip_qc():
     print(result)
     assert isinstance(result, pd.DataFrame)
     sc.save(file_dir="./saved_net")
-    assert Path("./saved_net/X.csv").is_file()
-    assert Path("./saved_net/Y.csv").is_file()
+    assert Path("./saved_net/qc/X.csv").is_file()
+    assert Path("./saved_net/qc/Y.csv").is_file()
 
-    assert Path("./saved_net/X/network_0.npz").is_file()
-    assert Path("./saved_net/Y/network_0.npz").is_file()
+    assert Path("./saved_net/nc/X/network_0.npz").is_file()
+    assert Path("./saved_net/nc/Y/network_0.npz").is_file()
 
-    assert Path("./saved_net/X.npz").is_file()
-    assert Path("./saved_net/Y.npz").is_file()
+    assert Path("./saved_net/td/X.npz").is_file()
+    assert Path("./saved_net/td/Y.npz").is_file()
 
-    assert Path("./saved_net/manifold_alignment.csv").is_file()
-    assert Path("./saved_net/d_regulation.csv").is_file()
+    assert Path("./saved_net/ma/manifold_alignment.csv").is_file()
+    assert Path("./saved_net/dr/d_regulation.csv").is_file()
 
     sc2 = scTenifoldNet.load(file_dir="./saved_net")
 
@@ -54,19 +54,17 @@ def test_scTenifoldKnk_method1():
     sc.save(file_dir="./saved_knk")
     sc2 = scTenifoldKnk.load(file_dir="./saved_knk")
     np.array_equal(sc.tensor_dict["WT"], sc2.tensor_dict["WT"])
-    assert Path("./saved_knk/WT.csv").is_file()
-    assert Path("./saved_knk/KO.csv").is_file()
+    assert Path("./saved_knk/qc/WT.csv").is_file()
+    assert Path("./saved_knk/qc/KO.csv").is_file()
 
-    assert Path("./saved_knk/WT/network_0.npz").is_file()
-    assert Path("./saved_knk/KO/network_0.npz").is_file()
+    assert Path("./saved_knk/nc/WT/network_0.npz").is_file()
+    assert Path("./saved_knk/nc/KO/network_0.npz").is_file()
 
-    assert Path("./saved_knk/WT.npz").is_file()
-    assert Path("./saved_knk/KO.npz").is_file()
+    assert Path("./saved_knk/td/WT.npz").is_file()
+    assert Path("./saved_knk/td/KO.npz").is_file()
 
-    assert Path("./saved_knk/manifold_alignment.csv").is_file()
-    assert Path("./saved_knk/d_regulation.csv").is_file()
-
-
+    assert Path("./saved_knk/ma/manifold_alignment.csv").is_file()
+    assert Path("./saved_knk/dr/d_regulation.csv").is_file()
 
 
 def test_scTenifoldKnk_method2():
