@@ -1,6 +1,5 @@
 from typing import Dict, Union, List
 import zipfile
-import gzip
 from io import BytesIO
 import re
 from pathlib import Path

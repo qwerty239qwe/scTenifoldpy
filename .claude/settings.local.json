@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/ -x -q)",
+      "Bash(pip install *)",
+      "Bash(python -m pytest tests/test_base.py tests/test_networks.py tests/test_QC.py -x -q)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}

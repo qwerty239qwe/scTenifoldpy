@@ -39,7 +39,7 @@ def build_net(config_file_path: str = typer.Option(...,
 
 
 @app.command(name="knk")
-def build_net(config_file_path: str = typer.Option(...,
+def build_knk(config_file_path: str = typer.Option(...,
                                                    "--config",
                                                    "-c",
                                                    help="Loaded config file's path"),

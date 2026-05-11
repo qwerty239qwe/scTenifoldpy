@@ -8,23 +8,22 @@ from scTenifold.core._networks import make_networks
 
 
 def ko_propagation(B, x, ko_gene_id, degree: int) -> np.ndarray:
-    adj_mat = B.copy()
+    adj_mat = B  # toarray() in the caller already returns a fresh array
     np.fill_diagonal(adj_mat, 0)
-    x_ko = x.copy()
-    p = np.zeros(shape=x.shape)
-    p[ko_gene_id, :] = x[ko_gene_id, :]
-    perturbs = [p]
-    is_visited = np.array([False for _ in range(x_ko.shape[0])])
-    for d in range(degree):
+    x_ko = x.astype(float)
+    p0 = np.zeros(shape=x.shape)
+    p0[ko_gene_id, :] = x[ko_gene_id, :]
+    is_visited = np.zeros(x_ko.shape[0], dtype=bool)
+    x_ko -= p0
+    current = p0
+    for _ in range(degree):
         if not is_visited.all():
-            perturbs.append(adj_mat @ perturbs[d])
-            new_visited = (perturbs[d+1] != 0).any(axis=1)
+            current = adj_mat @ current
+            new_visited = (current != 0).any(axis=1)
             adj_mat[is_visited, :] = 0
             adj_mat[:, is_visited] = 0
-            is_visited = is_visited | new_visited
-
-    for p in perturbs:
-        x_ko = x_ko - p
+            is_visited |= new_visited
+            x_ko -= current
     return np.where(x_ko >= 0, x_ko, 0)
 
 

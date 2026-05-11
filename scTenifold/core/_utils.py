@@ -19,7 +19,7 @@ def timer(func=None):
 
     @wraps(func)
     def _counter(*args, **kwargs):
-        if not kwargs.get("verbosity") is None:
+        if kwargs.get("verbosity") is not None:
             verbosity = kwargs.pop("verbosity")
         else:
             verbosity = 1
