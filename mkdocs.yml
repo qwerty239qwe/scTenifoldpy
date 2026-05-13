@@ -1,0 +1,58 @@
+site_name: scTenifoldpy
+repo_url: https://github.com/qwerty239qwe/scTenifoldpy
+use_directory_urls: false
+exclude_docs: |
+  source/*.rst
+  source/conf.py
+  requirements.txt
+  Makefile
+  make.bat
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quickstart: quickstart.md
+  - Tutorials:
+      - Data and Inputs: source/1_data.ipynb
+      - scTenifoldNet: source/2_build_network.ipynb
+      - Virtual Knockout: source/3_knock_out.ipynb
+      - Visualization: source/4_visualization.ipynb
+  - Pipeline Steps: pipeline-steps.md
+  - AnnData Input: anndata.md
+  - Parallel Backends: parallel-backends.md
+  - Workflow Output: workflow-output.md
+  - CLI: cli.md
+  - API Reference:
+      - Overview: api-reference.md
+      - High-Level API: api/high-level.md
+      - Workflow Classes: api/workflows.md
+      - Network Functions: api/networks.md
+      - Pipeline Functions: api/pipeline.md
+      - Data Helpers: api/data.md
+      - Plotting: api/plotting.md
+      - Utilities: api/utilities.md
+  - Citation: citation.md
+  - Changelog: changelog.md
+plugins:
+  - search
+  - mkdocs-jupyter:
+      execute: true
+      include_source: true
+      include_requirejs: true
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            members_order: source
+            merge_init_into_class: true
+            docstring_style: numpy
+            separate_signature: true
+            show_signature_annotations: true
