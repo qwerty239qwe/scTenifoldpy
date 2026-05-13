@@ -1,7 +1,9 @@
+from typing import Callable, Optional, Tuple, Union
+
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE, Isomap, MDS, SpectralEmbedding, LocallyLinearEmbedding
-import umap
 from sklearn.preprocessing import StandardScaler
+import numpy as np
 import pandas as pd
 from enum import Enum
 
@@ -9,6 +11,7 @@ __all__ = ["prepare_PCA_dfs", "prepare_embedding_dfs"]
 
 
 class Reducer(Enum):
+    """Supported non-PCA dimensionality reducers for :func:`prepare_embedding_dfs`."""
     TSNE = "TSNE"
     Isomap = "Isomap"
     MDS = "MDS"
@@ -21,14 +24,30 @@ REDUCER_DICT = {Reducer.TSNE: TSNE,
                 Reducer.MDS: MDS,
                 Reducer.Isomap: Isomap,
                 Reducer.LocallyLinearEmbedding: LocallyLinearEmbedding,
-                Reducer.SpectralEmbedding: SpectralEmbedding,
-                Reducer.UMAP: umap.UMAP}
+                Reducer.SpectralEmbedding: SpectralEmbedding}
 
 
-def prepare_PCA_dfs(feature_df,
-                    transform_func=None,
-                    n_components=None,
-                    standardize=True):
+def prepare_PCA_dfs(feature_df: pd.DataFrame,
+                    transform_func: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None,
+                    n_components: Optional[int] = None,
+                    standardize: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Run PCA on a genes-by-cells DataFrame.
+
+    Parameters
+    ----------
+    feature_df
+        Input expression DataFrame (rows are features, columns are samples).
+    transform_func
+        Optional pre-PCA transform applied to ``feature_df``.
+    n_components
+        Number of components; defaults to ``min(n_samples, n_features)``.
+    standardize
+        If True, z-score columns before PCA.
+
+    Returns
+    -------
+    Tuple ``(scores, explained_variance, loadings)`` as DataFrames.
+    """
     if transform_func is not None:
         x = transform_func(feature_df)
     else:
@@ -49,11 +68,33 @@ def prepare_PCA_dfs(feature_df,
     return final_df, exp_var_df, component_df
 
 
-def prepare_embedding_dfs(feature_df,
-                          transform_func=None,
-                          n_components=2,
-                          reducer="TSNE",
-                          standardize=True, **kwargs):
+def prepare_embedding_dfs(feature_df: pd.DataFrame,
+                          transform_func: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+                          n_components: int = 2,
+                          reducer: Union[str, "Reducer"] = "TSNE",
+                          standardize: bool = True, **kwargs: object) -> pd.DataFrame:
+    """Run a non-PCA dimensionality reducer on a feature DataFrame.
+
+    Parameters
+    ----------
+    feature_df
+        Input expression DataFrame (features x samples).
+    transform_func
+        Optional pre-embedding transform applied to ``feature_df.values``.
+    n_components
+        Number of embedding dimensions.
+    reducer
+        Reducer name or :class:`Reducer` member. ``"UMAP"`` requires
+        the optional ``umap-learn`` package.
+    standardize
+        If True, z-score columns before reduction.
+    **kwargs
+        Forwarded to the underlying reducer class.
+
+    Returns
+    -------
+    Sample-by-component DataFrame.
+    """
     if transform_func:
         x = transform_func(feature_df.values)
     else:
@@ -61,8 +102,16 @@ def prepare_embedding_dfs(feature_df,
     if isinstance(reducer, str):
         reducer = Reducer(reducer)
     sample_names = feature_df.columns.to_list()
-    x = StandardScaler().fit_transform(x.T) if standardize else x.values.T
-    X_embedded = REDUCER_DICT[reducer](n_components=n_components, **kwargs).fit_transform(x)
+    x = StandardScaler().fit_transform(x.T) if standardize else x.T
+    if reducer == Reducer.UMAP:
+        try:
+            import umap
+        except ImportError as exc:
+            raise ImportError("Install umap-learn to use reducer='UMAP'.") from exc
+        reducer_cls = umap.UMAP
+    else:
+        reducer_cls = REDUCER_DICT[reducer]
+    X_embedded = reducer_cls(n_components=n_components, **kwargs).fit_transform(x)
     df = pd.DataFrame(X_embedded,
                       columns=["{reducer} {i}".format(reducer=reducer.value, i=i) for i in range(1, n_components + 1)],
                       index=sample_names)

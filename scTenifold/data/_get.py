@@ -1,6 +1,5 @@
-from typing import Dict, Union, List
+from typing import Dict, List, Union
 import zipfile
-import gzip
 from io import BytesIO
 import re
 from pathlib import Path
@@ -13,29 +12,34 @@ from ._io import read_mtx
 
 
 _valid_ds_names = ["AD", "Nkx2_KO", "aging", "cetuximab", "dsRNA", "morphine"]
-_repo_url = "https://raw.githubusercontent.com/{owner}/scTenifold-data/master/{ds_name}"
+_repo_url = "https://raw.githubusercontent.com/{owner}/scTenifold-data/main/{ds_name}"
 _repo_tree_url = "https://api.github.com/repos/{owner}/scTenifold-data/git/trees/main?recursive=1"
 
 
 __all__ = ["list_data", "fetch_data"]
 
 
-def fetch_and_extract(url, saved_path):
+def fetch_and_extract(url: str, saved_path: Union[str, Path]) -> None:
+    """Download a zip archive and extract it to ``saved_path``."""
     resp = requests.get(url, stream=True)
+    resp.raise_for_status()
     content = resp.content
     zf = zipfile.ZipFile(BytesIO(content))
     with zf as f:
         f.extractall(saved_path)
 
 
-def download_url(url, save_path, chunk_size=128):
+def download_url(url: str, save_path: Union[str, Path], chunk_size: int = 128) -> None:
+    """Stream ``url`` to disk at ``save_path``."""
     r = requests.get(url, stream=True)
+    r.raise_for_status()
     with open(save_path, 'wb') as fd:
         for chunk in r.iter_content(chunk_size=chunk_size):
             fd.write(chunk)
 
 
-def list_data(owner="qwerty239qwe", return_list=True) -> Union[dict, List[str]]:
+def list_data(owner: str = "qwerty239qwe",
+              return_list: bool = True) -> Union[Dict[str, Dict[str, List[str]]], List[str]]:
     """
 
     Parameters
@@ -50,7 +54,9 @@ def list_data(owner="qwerty239qwe", return_list=True) -> Union[dict, List[str]]:
         The obtainable data store in a dict, structure {'data_name': {'group': ['file_names']}}
         or in a list of data_names
     """
-    tree = requests.get(_repo_tree_url.format(owner=owner)).json()['tree']
+    response = requests.get(_repo_tree_url.format(owner=owner))
+    response.raise_for_status()
+    tree = response.json()['tree']
     ds_list = [p["path"] for p in tree if "/" not in p["path"] and p["type"] == "tree"]
     if return_list:
         return ds_list
@@ -73,10 +79,29 @@ def list_data(owner="qwerty239qwe", return_list=True) -> Union[dict, List[str]]:
 
 def fetch_data(ds_name: str,
                dataset_path: Path = Path(__file__).parent.parent.parent / Path("datasets"),
-               owner="qwerty239qwe") -> Dict[str, pd.DataFrame]:
+               owner: str = "qwerty239qwe") -> Dict[str, pd.DataFrame]:
+    """Fetch and load a remote scTenifold dataset by name.
+
+    Parameters
+    ----------
+    ds_name
+        Dataset name (one of :data:`_valid_ds_names`).
+    dataset_path
+        Local directory to cache downloads.
+    owner
+        GitHub owner of the ``scTenifold-data`` mirror.
+
+    Returns
+    -------
+    Mapping from sample-group name to a genes-by-cells DataFrame.
+    """
     if not dataset_path.is_dir():
         dataset_path.mkdir(parents=True)
+    if ds_name not in _valid_ds_names:
+        raise ValueError(f"Unknown dataset {ds_name!r}; expected one of {_valid_ds_names}")
     ds_dic = list_data(owner=owner, return_list=False)
+    if ds_name not in ds_dic:
+        raise ValueError(f"Dataset {ds_name!r} was not found in the remote data repository")
 
     result_df = {}
 

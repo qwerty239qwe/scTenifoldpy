@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from pathlib import Path
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,7 @@ DEFAULT_NEG = ["IL2", "TNF"]
 
 def get_test_df(n_cells: int = 100,
                 n_genes: int = 1000,
-                random_state: int = None):
+                random_state: Optional[int] = None) -> pd.DataFrame:
     """
     Function to generate test dataframe
 
@@ -35,12 +36,14 @@ def get_test_df(n_cells: int = 100,
     """
     data = np.random.default_rng(seed=random_state).negative_binomial(20, 0.98,
                                                                       n_cells * n_genes).reshape(n_genes, n_cells)
-    pseudo_gene_names = ["MT-{}".format(i) for i in range(1, 11)] + ["NG-{}".format(i) for i in range(1, n_genes - 9)]
+    n_mt = min(10, n_genes)
+    pseudo_gene_names = ["MT-{}".format(i) for i in range(1, n_mt + 1)] + \
+        ["NG-{}".format(i) for i in range(1, n_genes - n_mt + 1)]
     pseudo_cell_names = ["Cell-{}".format(i) for i in range(1, n_cells + 1)]
     return pd.DataFrame(data, index=pseudo_gene_names, columns=pseudo_cell_names)
 
 
-def _normalize(data):
+def _normalize(data: np.ndarray) -> np.ndarray:
     return np.log((data / np.nansum(data, axis=0)) * 1e4 + 1)
 
 
@@ -76,13 +79,16 @@ class TestDataGenerator:
     n_ctrl: int = 50
     random_state: int = 42
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Build the simulated count matrix and gene/sample labels."""
         self.random_state_seed = self.random_state
         random_state = np.random.default_rng(self.random_state)
         if self.target_pos is None:
             self.target_pos = DEFAULT_POS
         if self.target_neg is None:
             self.target_neg = []
+        if len(self.target_pos) + len(self.target_neg) > self.n_genes:
+            raise ValueError("n_genes must be at least the number of target positive and negative genes")
         self.X = random_state.negative_binomial(20, 0.9,
                                                 size=(self.n_genes, self.n_samples))
         self._add_eff(random_state)
@@ -98,21 +104,41 @@ class TestDataGenerator:
         pos_eff_size = int(self.n_samples * self.pos_eff_ratio)
         neg_eff_size = int(self.n_samples * self.neg_eff_ratio)
         effect = np.zeros(shape=(self.n_genes, pos_eff_size+neg_eff_size), dtype=np.int32)
-        effect[-len(self.target_pos)-len(self.target_neg):
-               -len(self.target_neg), :pos_eff_size] = random_state.negative_binomial(20, 0.5,
-                                                                                      size=(len(self.target_pos),
-                                                                                            pos_eff_size))
-        effect[-len(self.target_neg):, pos_eff_size:] = random_state.negative_binomial(20, 0.5,
-                                                                                       size=(len(self.target_neg),
-                                                                                             neg_eff_size))
-        self.X[:, -pos_eff_size-neg_eff_size:] += effect
+        target_start = self.n_genes - len(self.target_pos) - len(self.target_neg)
+        pos_end = target_start + len(self.target_pos)
+        if len(self.target_pos) and pos_eff_size:
+            effect[target_start:pos_end, :pos_eff_size] = random_state.negative_binomial(
+                20, 0.5, size=(len(self.target_pos), pos_eff_size)
+            )
+        if len(self.target_neg) and neg_eff_size:
+            effect[pos_end:, pos_eff_size:] = random_state.negative_binomial(
+                20, 0.5, size=(len(self.target_neg), neg_eff_size)
+            )
+        eff_start = self.n_samples - pos_eff_size - neg_eff_size
+        if eff_start < self.n_samples:
+            self.X[:, eff_start:] += effect
 
     def save_data(self,
-                  file_path,
-                  use_normalized):
+                  file_path: Union[str, Path],
+                  use_normalized: bool) -> None:
+        """Save the simulated count matrix as CSV to ``file_path``."""
         self.get_data("pandas", use_normalized)["X"].to_csv(file_path)
 
-    def get_data(self, data_type, use_normalized) -> dict:
+    def get_data(self, data_type: str, use_normalized: bool) -> Dict[str, object]:
+        """Return the simulated data packaged for downstream scorers.
+
+        Parameters
+        ----------
+        data_type
+            One of ``"numpy"``, ``"pandas"``, or ``"ann_data"`` (currently
+            disabled — returns an empty dict).
+        use_normalized
+            If True, return log-CPM-like normalized counts; otherwise raw counts.
+
+        Returns
+        -------
+        Keyword arguments suitable for :func:`cell_cycle_score` or :func:`adobo_score`.
+        """
         used_X = self.n_X if use_normalized else self.X
         if data_type == "ann_data":
             # used_X = AnnData(

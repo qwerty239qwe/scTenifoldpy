@@ -1,9 +1,10 @@
 import re
 from pathlib import Path
 import zipfile
+from typing import Optional, Union
 from warnings import warn
 
-from scipy.sparse.csr import csr_matrix
+from scipy.sparse import csr_matrix
 import pandas as pd
 
 
@@ -43,7 +44,7 @@ def _parse_mtx(mtx_file_name):
         with open(mtx_file_name) as f:
             rows = f.readlines()
             body, header = _get_mtx_body(rows)
-            n_rows, n_cols = header[0], header[1]
+            n_rows, n_cols = int(header[0]), int(header[1])
         is_dense = False
     elif suffix == ".tsv":
         body = pd.read_csv(mtx_file_name, sep='\t', header=None, index_col=False).values
@@ -60,7 +61,7 @@ def _parse_mtx(mtx_file_name):
             if sf not in [".csv", ".tsv"]:
                 rows = fn.readlines()
                 body, header = _get_mtx_body(rows, decode="utf-8")
-                n_rows, n_cols = header[0], header[1]
+                n_rows, n_cols = int(header[0]), int(header[1])
                 is_dense = False
             else:
                 body = pd.DataFrame([f.decode("utf-8").strip().split("," if sf == ".csv" else "\t")
@@ -72,9 +73,9 @@ def _parse_mtx(mtx_file_name):
     return body, is_dense, n_rows, n_cols
 
 
-def read_mtx(mtx_file_name,
-             gene_file_name,
-             barcode_file_name) -> pd.DataFrame:
+def read_mtx(mtx_file_name: Union[str, Path],
+             gene_file_name: Union[str, Path],
+             barcode_file_name: Optional[Union[str, Path]]) -> pd.DataFrame:
     """
     Read mtx data
 
@@ -92,6 +93,10 @@ def read_mtx(mtx_file_name,
     df: pd.DataFrame
         A dataframe with genes as rows and cells as columns
     """
+    if mtx_file_name is None:
+        raise ValueError("matrix file is required")
+    if gene_file_name is None:
+        raise ValueError("gene file is required")
     genes = pd.read_csv(gene_file_name, sep='\t', header=None).iloc[:, 0]
     barcodes = pd.read_csv(barcode_file_name, sep='\t', header=None).iloc[:, 0] \
         if barcode_file_name is not None else None
@@ -108,19 +113,42 @@ def read_mtx(mtx_file_name,
     return df
 
 
-def read_folder(file_dir,
-                matrix_fn = "matrix",
-                gene_fn = "genes",
-                barcodes_fn = "barcodes"):
+def read_folder(file_dir: Union[str, Path],
+                matrix_fn: str = "matrix",
+                gene_fn: str = "genes",
+                barcodes_fn: str = "barcodes") -> pd.DataFrame:
+    """Read mtx + genes + barcodes from a directory by filename substring.
+
+    Parameters
+    ----------
+    file_dir
+        Path to a directory containing matrix, gene, and barcode files.
+    matrix_fn
+        Substring identifying the matrix file (e.g. ``"matrix"``).
+    gene_fn
+        Substring identifying the gene file.
+    barcodes_fn
+        Substring identifying the barcode file.
+
+    Returns
+    -------
+    Genes-by-cells DataFrame.
+    """
     dir_path = Path(file_dir)
-    fn_dic = {fn: None for fn in [matrix_fn, gene_fn, barcodes_fn]}
+    fn_dic = {fn: [] for fn in [matrix_fn, gene_fn, barcodes_fn]}
     if not dir_path.is_dir():
         raise ValueError("Path is not exist or is not a folder path")
     for fn in dir_path.iterdir():
         for k in fn_dic:
             if k in fn.name:
-                fn_dic[k] = fn
+                fn_dic[k].append(fn)
 
-    return read_mtx(mtx_file_name=(dir_path / fn_dic[matrix_fn]).name,
-                    gene_file_name=(dir_path / fn_dic[gene_fn]).name,
-                    barcode_file_name=(dir_path / fn_dic[barcodes_fn]).name)
+    resolved = {}
+    for key, matches in fn_dic.items():
+        if len(matches) > 1:
+            raise ValueError(f"Multiple files match {key!r}: {[match.name for match in matches]}")
+        resolved[key] = matches[0] if matches else None
+
+    return read_mtx(mtx_file_name=str(resolved[matrix_fn]) if resolved[matrix_fn] else None,
+                    gene_file_name=str(resolved[gene_fn]) if resolved[gene_fn] else None,
+                    barcode_file_name=str(resolved[barcodes_fn]) if resolved[barcodes_fn] else None)
