@@ -3,7 +3,7 @@ from pathlib import Path
 import zipfile
 from warnings import warn
 
-from scipy.sparse.csr import csr_matrix
+from scipy.sparse import csr_matrix
 import pandas as pd
 
 
