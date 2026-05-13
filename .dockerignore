@@ -1,0 +1,9 @@
+*
+
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!README.md
+!LICENSE
+!scTenifold
+!scTenifold/**
