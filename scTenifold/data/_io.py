@@ -149,6 +149,14 @@ def read_folder(file_dir: Union[str, Path],
             raise ValueError(f"Multiple files match {key!r}: {[match.name for match in matches]}")
         resolved[key] = matches[0] if matches else None
 
-    return read_mtx(mtx_file_name=str(resolved[matrix_fn]) if resolved[matrix_fn] else None,
-                    gene_file_name=str(resolved[gene_fn]) if resolved[gene_fn] else None,
-                    barcode_file_name=str(resolved[barcodes_fn]) if resolved[barcodes_fn] else None)
+    matrix_path = resolved[matrix_fn]
+    gene_path = resolved[gene_fn]
+    barcode_path = resolved[barcodes_fn]
+    if matrix_path is None:
+        raise ValueError("matrix file is required")
+    if gene_path is None:
+        raise ValueError("gene file is required")
+
+    return read_mtx(mtx_file_name=str(matrix_path),
+                    gene_file_name=str(gene_path),
+                    barcode_file_name=str(barcode_path) if barcode_path else None)

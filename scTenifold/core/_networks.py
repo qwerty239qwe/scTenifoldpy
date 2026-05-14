@@ -241,7 +241,8 @@ def make_networks(data: ExpressionData,
         )
     else:
         try:
-            import ray
+            from importlib import import_module
+            ray = import_module("ray")
         except ImportError as exc:
             raise ImportError("Install scTenifoldpy[parallel-ray] to use backend='ray'.") from exc
 

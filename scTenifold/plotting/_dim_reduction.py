@@ -105,7 +105,8 @@ def prepare_embedding_dfs(feature_df: pd.DataFrame,
     x = StandardScaler().fit_transform(x.T) if standardize else x.T
     if reducer == Reducer.UMAP:
         try:
-            import umap
+            from importlib import import_module
+            umap = import_module("umap")
         except ImportError as exc:
             raise ImportError("Install umap-learn to use reducer='UMAP'.") from exc
         reducer_cls = umap.UMAP

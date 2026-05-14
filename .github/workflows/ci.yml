@@ -29,6 +29,9 @@ jobs:
       run: uv sync --group test --group dev --group docs
     - name: Lint
       run: uv run ruff check .
+    - name: Type check (preview)
+      continue-on-error: true
+      run: uv run ty check scTenifold
     - name: Test with pytest
       run: uv run pytest
     - name: Build package

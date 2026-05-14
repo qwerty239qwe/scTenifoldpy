@@ -50,7 +50,11 @@ parallel-ray = ["ray>=2"]
 docs = ["mkdocs-jupyter>=0.24", "mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
 
 [dependency-groups]
-dev = ["build>=1.2", "ruff>=0.6"]
+dev = [
+    "build>=1.2",
+    "ruff>=0.6",
+    "ty>=0.0.35",
+]
 test = ["pytest>=7", "pytest-cov>=4"]
 docs = ["mkdocs-jupyter>=0.24", "mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
 

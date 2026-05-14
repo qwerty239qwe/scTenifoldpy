@@ -152,7 +152,11 @@ def cell_cycle_score(X: np.ndarray,
 
 
 if __name__ == '__main__':
-    from scanpy.tools import score_genes
+    from importlib import import_module
+    try:
+        score_genes = import_module("scanpy.tools").score_genes
+    except ImportError as exc:
+        raise ImportError("Install scTenifoldpy[scanpy] to run the Scanpy scoring comparison.") from exc
     parser = argparse.ArgumentParser()
     parser.add_argument("-r", "--random_state",
                         help="random seed", default=42, type=int)
