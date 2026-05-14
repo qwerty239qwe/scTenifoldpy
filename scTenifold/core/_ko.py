@@ -71,9 +71,11 @@ def reconstruct_pcnets(nets: List[coo_matrix],
     List of post-knockout PC networks.
     """
     ko_nets = []
+    network_kws = dict(kwargs)
+    network_kws["n_nets"] = 1
     for net in nets:
         data = ko_propagation(net.toarray(), X_df.values, ko_gene_id, degree)
         data = pd.DataFrame(data, index=X_df.index, columns=X_df.columns)
-        ko_net = make_networks(data, n_nets=1, **kwargs)[0]
+        ko_net = make_networks(data, **network_kws)[0]
         ko_nets.append(ko_net)
     return ko_nets
