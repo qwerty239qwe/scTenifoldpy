@@ -1,20 +1,40 @@
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 import argparse
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scanpy.tools import score_genes
 
 from scTenifold.data._sim import *
 
 
-def adobo_score(X,
-                genes,
+def adobo_score(X: pd.DataFrame,
+                genes: List[str],
                 n_bins: int = 25,
                 n_ctrl: int = 50,
                 random_state: int = 42,
-                file_path: Path = None):
+                file_path: Optional[Path] = None) -> pd.Series:
+    """Adobo-style signature score: mean target expression minus binned controls.
+
+    Parameters
+    ----------
+    X
+        Expression DataFrame (genes x cells).
+    genes
+        Target signature gene names.
+    n_bins
+        Number of mean-expression bins used to draw controls.
+    n_ctrl
+        Number of control genes sampled per target.
+    random_state
+        Seed for the control sampler.
+    file_path
+        Optional CSV output destination.
+
+    Returns
+    -------
+    Per-cell signature scores.
+    """
     if len(genes) == 0:
         raise ValueError('Gene list ("genes") is empty.')
     gene_mean = X.mean(axis=1)
@@ -55,26 +75,52 @@ def _get_assigned_bins(data_avg: np.ndarray,
 
 
 def _get_ctrl_use(assigned_bin: np.ndarray,
-                  gene_arr,
-                  target_dict,
-                  n_ctrl,
-                  random_state) -> List[str]:
-    selected_bins = list(set(assigned_bin[np.in1d(gene_arr, target_dict["Pos"])]))
-    genes_in_same_bin = gene_arr[np.in1d(assigned_bin, selected_bins)]
+                  gene_arr: np.ndarray,
+                  target_dict: Dict[str, List[str]],
+                  n_ctrl: int,
+                  random_state: np.random.Generator) -> List[str]:
+    selected_bins = list(set(assigned_bin[np.isin(gene_arr, target_dict["Pos"])]))
+    genes_in_same_bin = gene_arr[np.isin(assigned_bin, selected_bins)]
     ctrl_use = list()
     for _ in range(len(target_dict["Pos"])):
         ctrl_use.extend(random_state.choice(genes_in_same_bin, n_ctrl))
     return list(set(ctrl_use))
 
 
-def cell_cycle_score(X,
+def cell_cycle_score(X: np.ndarray,
                      gene_list: List[str],
                      sample_list: List[str],
                      target_dict: Optional[Dict[str, List[str]]] = None,
                      n_bins: int = 25,
                      n_ctrl: int = 50,
                      random_state: int = 42,
-                     file_path: Optional[Path] = None):
+                     file_path: Optional[Path] = None) -> np.ndarray:
+    """Score cell cycle (or arbitrary signature) per cell, Seurat-style.
+
+    Parameters
+    ----------
+    X
+        Expression matrix (genes x cells).
+    gene_list
+        Gene names aligned with rows of ``X``.
+    sample_list
+        Sample names aligned with columns of ``X`` (used for CSV output).
+    target_dict
+        ``{"Pos": [...], "Neg": [...]}`` signature genes; defaults to
+        :data:`scTenifold.data._sim.DEFAULT_POS`/``DEFAULT_NEG``.
+    n_bins
+        Mean-expression bin count for control selection.
+    n_ctrl
+        Number of control genes per target.
+    random_state
+        Seed for the RNG.
+    file_path
+        Optional CSV destination.
+
+    Returns
+    -------
+    Per-cell signature scores.
+    """
     random_state = np.random.default_rng(random_state)
     if target_dict is None:
         target_dict = {"Pos": DEFAULT_POS,
@@ -96,8 +142,8 @@ def cell_cycle_score(X,
     assigned_bin = _get_assigned_bins(data_avg, cluster_len, n_bins)
     used_ctrl = _get_ctrl_use(assigned_bin, gene_list, target_dict,
                               n_ctrl, random_state)
-    ctrl_score = X[np.in1d(gene_list, used_ctrl), :].mean(axis=0).T
-    features_score = X[np.in1d(gene_list, target_dict["Pos"]), :].mean(axis=0).T
+    ctrl_score = X[np.isin(gene_list, used_ctrl), :].mean(axis=0).T
+    features_score = X[np.isin(gene_list, target_dict["Pos"]), :].mean(axis=0).T
     scores = features_score - ctrl_score
     if file_path:
         pd.DataFrame({"score": scores}, index=sample_list).to_csv(file_path)
@@ -106,6 +152,11 @@ def cell_cycle_score(X,
 
 
 if __name__ == '__main__':
+    from importlib import import_module
+    try:
+        score_genes = import_module("scanpy.tools").score_genes
+    except ImportError as exc:
+        raise ImportError("Install scTenifoldpy[scanpy] to run the Scanpy scoring comparison.") from exc
     parser = argparse.ArgumentParser()
     parser.add_argument("-r", "--random_state",
                         help="random seed", default=42, type=int)

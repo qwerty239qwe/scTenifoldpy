@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use("Agg")
+
 import pytest
 from pathlib import Path
 from scTenifold.data import fetch_data

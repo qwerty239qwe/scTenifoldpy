@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -11,8 +11,8 @@ from scTenifold.plotting._dim_reduction import *
 
 
 def plot_network_graph(network: np.ndarray,
-                       weight_thres=0.1,
-                       con_thres=0) -> None:
+                       weight_thres: float = 0.1,
+                       con_thres: float = 0) -> None:
     """
     Plot graph of a PCnet
 
@@ -45,7 +45,7 @@ def plot_network_graph(network: np.ndarray,
 
 
 def plot_network_heatmap(network: np.ndarray,
-                         figsize=(12, 12)) -> None:
+                         figsize: Tuple[int, int] = (12, 12)) -> None:
     """
     Plot a heatmap of a PC network
 
@@ -63,9 +63,9 @@ def plot_network_heatmap(network: np.ndarray,
     sns.heatmap(network, center=0.0, ax=ax)
 
 
-def plot_qqplot(df,
-                exp_col="FC",
-                stat_col="adjusted p-value",
+def plot_qqplot(df: pd.DataFrame,
+                exp_col: str = "FC",
+                stat_col: str = "adjusted p-value",
                 plot_qqline: bool = True,
                 sig_threshold: float = 0.1) -> None:
     """
@@ -106,15 +106,15 @@ def plot_qqplot(df,
     plt.show()
 
 
-def plot_embedding(df,
-                   groups: dict,
+def plot_embedding(df: pd.DataFrame,
+                   groups: Optional[Dict[str, List[str]]],
                    method: str = "UMAP",
                    plot_2D: bool = True,
-                   figsize: tuple = (8, 8),
+                   figsize: Tuple[int, int] = (8, 8),
                    size: int = 10,
-                   title: str = None,
+                   title: Optional[str] = None,
                    palette: str = "muted",
-                   **kwargs):
+                   **kwargs: object) -> None:
     """
     Do dimension reduction and plot the embeddings onto a 2D plot
 
@@ -183,28 +183,32 @@ def plot_embedding(df,
     plt.show()
 
 
-def plot_hist(df_1,
+def plot_hist(df_1: pd.DataFrame,
               df_1_name: str,
               df_2: Optional[pd.DataFrame] = None,
               df_2_name: Optional[str] = None,
               sum_axis: int = 0,
               label: str = "Sample",
-              figsize: Tuple[int, int] = (10, 8)):
-    """
+              figsize: Tuple[int, int] = (10, 8)) -> None:
+    """Plot library-size histograms for one or two QC matrices.
 
     Parameters
     ----------
     df_1
+        Genes-by-cells (or cells-by-genes) DataFrame.
     df_1_name
+        Legend label for ``df_1``.
     df_2
+        Optional second DataFrame plotted on the same axes.
     df_2_name
+        Legend label for ``df_2``.
     sum_axis
+        Axis to sum over before histogramming (``0`` for genes-by-cells,
+        ``1`` for cells-by-genes).
     label
+        X-axis label for the histogram.
     figsize
-
-    Returns
-    -------
-
+        Figure size in inches.
     """
     fig, ax = plt.subplots(figsize=figsize)
     df_1 = df_1.copy()

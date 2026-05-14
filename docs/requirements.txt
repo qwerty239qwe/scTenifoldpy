@@ -1,5 +1,3 @@
-nbsphinx
-ipykernel
-sphinxcontrib-napoleon
-sphinx
-ipykernel
+mkdocs-jupyter>=0.24
+mkdocs-material>=9
+mkdocstrings[python]>=0.24

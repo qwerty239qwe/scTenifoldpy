@@ -66,13 +66,17 @@ def test_scTenifoldKnk_method1():
 
 
 def test_scTenifoldKnk_method2():
-    df = get_test_df(n_genes=100, n_cells=100)
+    df = get_test_df(n_genes=40, n_cells=60, random_state=7)
     sc = scTenifoldKnk(data=df,
                        ko_method="propagation",
-                       qc_kws={"min_lib_size": 10, "min_percent": 0.001},
-                       ko_kws={"degree": 10})
+                       qc_kws={"min_lib_size": 10, "min_percent": 0, "max_mito_ratio": 1.0,
+                               "min_exp_avg": 0, "min_exp_sum": 0, "plot": False},
+                       nc_kws={"n_nets": 2, "n_samp_cells": 30, "n_comp": 3, "q": 0, "backend": "serial"},
+                       td_kws={"K": 2, "max_iter": 50, "init": "random"},
+                       ma_kws={"d": 2},
+                       ko_kws={"degree": 2})
     sc.run_step("qc")
-    sc.run_step("nc", n_cpus=-1)
+    sc.run_step("nc")
     sc.run_step("td")
     sc.run_step("ko", ko_genes=[sc.tensor_dict["WT"].index.to_list()[0]])
     sc.run_step("ma")

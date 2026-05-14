@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scTenifoldpy"
+version = "0.2.0"
+description = "Python implementation of scTenifoldNet and scTenifoldKnk workflows."
+readme = "README.md"
+requires-python = ">=3.9,<3.15"
+license = "MIT"
+authors = [
+  { name = "Yu-Te Lin", email = "qwerty239qwe@gmail.com" }
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+  "joblib>=1.2",
+  "matplotlib>=3.6",
+  "networkx>=2.8",
+  "numpy>=1.23",
+  "pandas>=1.5",
+  "PyYAML>=6",
+  "requests>=2.26",
+  "scikit-learn>=1.1",
+  "scipy>=1.9",
+  "seaborn>=0.12",
+  "tensorly>=0.8",
+  "typer>=0.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/qwerty239qwe/scTenifoldpy"
+Repository = "https://github.com/qwerty239qwe/scTenifoldpy"
+Issues = "https://github.com/qwerty239qwe/scTenifoldpy/issues"
+
+[project.scripts]
+scTenifold = "scTenifold.__main__:app"
+
+[project.optional-dependencies]
+scanpy = ["scanpy>=1.9"]
+parallel-ray = ["ray>=2"]
+docs = ["mkdocs-jupyter>=0.24", "mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
+
+[dependency-groups]
+dev = [
+    "build>=1.2",
+    "ruff>=0.6",
+    "ty>=0.0.35",
+]
+test = ["pytest>=7", "pytest-cov>=4"]
+docs = ["mkdocs-jupyter>=0.24", "mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
+
+[tool.setuptools.packages.find]
+include = ["scTenifold*"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=scTenifold --cov-report=term-missing"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]

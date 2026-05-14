@@ -15,7 +15,8 @@ def get_config_file(
                         ".config.yml",
                         "--path",
                         "-p",
-                        help="Path to generate empty config file")):
+                        help="Path to generate empty config file")) -> None:
+    """Write an empty scTenifoldNet or scTenifoldKnk config YAML."""
     config = scTenifoldNet.get_empty_config() if config_type == 1 else scTenifoldKnk.get_empty_config()
     with open(Path(file_path), 'w') as outfile:
         yaml.dump(config, outfile, default_flow_style=False)
@@ -30,7 +31,8 @@ def build_net(config_file_path: str = typer.Option(...,
                                                   "--output",
                                                   "-o",
                                                   help="Output folder containing all analysis results"),
-              ):
+              ) -> None:
+    """Build a scTenifoldNet from a config YAML and save the result."""
     with open(Path(config_file_path), "r") as f:
         data = yaml.safe_load(f)
     sc = scTenifoldNet.load_config(config=data)
@@ -39,7 +41,7 @@ def build_net(config_file_path: str = typer.Option(...,
 
 
 @app.command(name="knk")
-def build_net(config_file_path: str = typer.Option(...,
+def build_knk(config_file_path: str = typer.Option(...,
                                                    "--config",
                                                    "-c",
                                                    help="Loaded config file's path"),
@@ -47,7 +49,8 @@ def build_net(config_file_path: str = typer.Option(...,
                                                   "--output",
                                                   "-o",
                                                   help="Output folder containing all analysis results"),
-              ):
+              ) -> None:
+    """Build a scTenifoldKnk from a config YAML and save the result."""
     with open(Path(config_file_path), "r") as f:
         data = yaml.safe_load(f)
     sc = scTenifoldKnk.load_config(config=data)

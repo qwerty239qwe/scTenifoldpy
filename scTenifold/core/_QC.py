@@ -33,6 +33,7 @@ def sc_QC(X: pd.DataFrame,
     X_modified: pd.DataFrame
         The DataFrame after QC
     """
+    X = X.copy()
     outlier_coef = 1.5
     X[X < 0] = 0
     lib_size = X.sum(axis=0)
@@ -42,8 +43,7 @@ def sc_QC(X: pd.DataFrame,
     if remove_outlier_cells:
         lib_size = X.sum(axis=0)
         before_s = X.shape[1]
-        Q3 = lib_size.to_frame().quantile(0.75, axis=0).values[0]
-        Q1 = lib_size.to_frame().quantile(0.25, axis=0).values[0]
+        Q1, Q3 = lib_size.quantile([0.25, 0.75])
         interquartile_range = Q3 - Q1
         X = X.loc[:, (lib_size >= Q1 - interquartile_range * outlier_coef) &
                      (lib_size <= Q3 + interquartile_range * outlier_coef)]
