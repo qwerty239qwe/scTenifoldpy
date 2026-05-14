@@ -1,6 +1,7 @@
 # scTenifoldpy
 
 [![CI](https://github.com/qwerty239qwe/scTenifoldpy/actions/workflows/ci.yml/badge.svg)](https://github.com/qwerty239qwe/scTenifoldpy/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/qwerty239qwe/scTenifoldpy/graph/badge.svg?token=H16KYU2K7M)](https://codecov.io/gh/qwerty239qwe/scTenifoldpy)
 [![PyPI](https://img.shields.io/pypi/v/scTenifoldpy.svg)](https://pypi.org/project/scTenifoldpy/)
 [![Python](https://img.shields.io/pypi/pyversions/scTenifoldpy.svg)](https://pypi.org/project/scTenifoldpy/)
 [![License](https://img.shields.io/github/license/qwerty239qwe/scTenifoldpy.svg)](LICENSE)
@@ -12,7 +13,7 @@
 
 ```bash
 uv venv
-uv pip install scTenifoldpy
+uv add scTenifoldpy
 ```
 
 or:
@@ -24,16 +25,16 @@ pip install scTenifoldpy
 Optional extras:
 
 ```bash
+# use uv
 uv venv
-uv pip install "scTenifoldpy[scanpy]"
-uv pip install "scTenifoldpy[parallel-ray]"
+uv add "scTenifoldpy[scanpy]"
+uv add "scTenifoldpy[parallel-ray]"
+
+# or use pip
 pip install "scTenifoldpy[scanpy]"
 pip install "scTenifoldpy[parallel-ray]"
 ```
 
-`scTenifoldpy` has no R runtime dependency. The principal-component
-network step is implemented in Python and uses
-`sklearn.utils.extmath.randomized_svd`.
 
 ## Docker
 
@@ -126,5 +127,22 @@ scTenifold knk -c ./knk_config.yml -o ./output_folder
 
 ## Citation
 
-Please cite the original scTenifoldNet paper if you use this package in scientific work:
-https://www.sciencedirect.com/science/article/pii/S2666389920301872
+If you use `scTenifoldpy` in scientific work, please cite this software
+using the metadata in [`CITATION.cff`](CITATION.cff), and cite the
+underlying method paper that matches your analysis:
+
+**scTenifoldNet**
+
+Osorio, D., Zhong, Y., Li, G., Huang, J. Z., & Cai, J. J. (2020).
+scTenifoldNet: A machine learning workflow for constructing and comparing
+transcriptome-wide gene regulatory networks from single-cell data.
+*Patterns*, 1(9), Article 100139.
+https://doi.org/10.1016/j.patter.2020.100139
+
+**scTenifoldKnk**
+
+Osorio, D., Zhong, Y., Li, G., Xu, Q., Yang, Y., Tian, Y., Chapkin, R. S.,
+Huang, J. Z., & Cai, J. J. (2022). scTenifoldKnk: An efficient virtual
+knockout tool for gene function predictions via single-cell gene regulatory
+network perturbation. *Patterns*, 3(3), Article 100434.
+https://doi.org/10.1016/j.patter.2022.100434
