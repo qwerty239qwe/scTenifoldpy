@@ -2,7 +2,9 @@ from typing import Sequence
 
 import numpy as np
 import pandas as pd
+import scipy
 from scTenifold.core._utils import timer
+from tensorly.decomposition import parafac, parafac2, parafac_power_iteration
 from tensorly import decomposition
 import tensorly as tl
 
@@ -61,6 +63,6 @@ def tensor_decomp(networks: np.ndarray,
                                              random_state=random_state, **kwargs)
     estimate = tl.cp_to_tensor(factors)
     print(estimate.shape)
-    out = np.sum(estimate, axis=-1) / networks.shape[-1]
+    out = np.sum(estimate, axis=-1) / len(networks)
     out = np.round(out / np.max(abs(out)), n_decimal)
     return pd.DataFrame(out, index=gene_names, columns=gene_names)

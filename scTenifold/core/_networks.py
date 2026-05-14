@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 from scipy.sparse import coo_matrix
-import scipy.linalg
 import scipy.sparse.linalg
 from sklearn.utils.extmath import randomized_svd
 import ray
@@ -37,8 +36,8 @@ def cal_pc_coefs(k, X, n_comp, method="sklearn", random_state=42):
         raise ValueError("Invalid method")
     coef = VT[:n_comp, :].T  # (genes - 1) x n_comp
     score = Xi @ coef  # cells x n_comp
-    score = score / (score ** 2).sum(axis=0)
-    betas = coef @ (score.T @ y)  # (genes - 1),
+    score = score / np.expand_dims(np.power(np.sqrt(np.sum(np.power(score, 2), axis=0)), 2), 0)
+    betas = coef.dot(np.sum(np.expand_dims(y, 1) * score, axis=0))  # (genes - 1),
     return np.expand_dims(betas, 1)
 
 
@@ -95,6 +94,21 @@ def pc_net_parallelized(data: pd.DataFrame,  # genes x cells
                        q=q,
                        random_state=random_state)
 
+
+def pc_net_single(data: pd.DataFrame,  # genes x cells
+                  selected_samples,
+                  n_comp: int = 3,
+                  scale_scores: bool = True,
+                  symmetric: bool = False,
+                  q: float = 0.,
+                  random_state: int = 42):
+    return pc_net_calc(data=data,
+                       selected_samples=selected_samples,
+                       n_comp=n_comp,
+                       scale_scores=scale_scores,
+                       symmetric=symmetric,
+                       q=q,
+                       random_state=random_state)
 
 
 @timer
@@ -173,13 +187,13 @@ def make_networks(data: pd.DataFrame,
         for net in range(n_nets):
             sample = rng.choice(n_cells, n_samp_cells, replace=True) if n_samp_cells is not None else np.arange(n_cells)
             sel_samples.append(sample)
-            results.append(pc_net_calc(data,
-                                       selected_samples=sample,
-                                       n_comp=n_comp,
-                                       scale_scores=scale_scores,
-                                       symmetric=symmetric,
-                                       q=q,
-                                       random_state=random_state))
+            results.append(pc_net_single(data,
+                                         selected_samples=sample,
+                                         n_comp=n_comp,
+                                         scale_scores=scale_scores,
+                                         symmetric=symmetric,
+                                         q=q,
+                                         random_state=random_state))
     for i, pc_net in enumerate(results):
         Z = data.iloc[:, sel_samples[i]]
         sel_genes = (Z.sum(axis=1) > 0)
@@ -281,10 +295,8 @@ def manifold_alignment(X: pd.DataFrame,
     np.fill_diagonal(W, 0)
     np.fill_diagonal(W, -W.sum(axis=0))
     eg_vals, eg_vecs = scipy.sparse.linalg.eigs(W, k=d * 2, which="SR", tol=1e-14)
-    eg_vals = eg_vals.real
-    eg_vecs = eg_vecs.real
     eg_vecs = eg_vecs[:, eg_vals >= tol]
-    eg_vecs = eg_vecs[:, np.argsort(eg_vals[eg_vals >= tol])]
+    eg_vecs = eg_vecs[:, np.argsort(eg_vals[eg_vals >= tol], )]
     return pd.DataFrame(eg_vecs[:, :d],
                         index=["X_{g}".format(g=g) for g in shared_genes]+["Y_{g}".format(g=g) for g in shared_genes],
                         columns=["NLMA_{i}".format(i=i+1) for i in range(min(d, eg_vecs.shape[1]))])
@@ -342,7 +354,7 @@ def d_regulation(data,
         t_d_metrics = np.array(t)
         if max_log < 0:
             t_d_metrics = 1 / t_d_metrics
-    except Exception:
+    except:
         warn("cannot find the box-cox transformed values")
         t_d_metrics = d_metrics
 

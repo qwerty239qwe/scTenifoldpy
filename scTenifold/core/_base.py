@@ -60,7 +60,7 @@ class scBase:
             dic = {}
             for d in file_dir.iterdir():
                 if d.is_file():
-                    dic[d.stem] = pd.read_csv(d, index_col=0)
+                    dic[d.stem] = pd.read_csv(d)
             obj_name = "QC_dict"
         elif comp == "nc":
             dic = {}
@@ -79,11 +79,10 @@ class scBase:
                     dic[d.stem] = sparse.load_npz(d).toarray()
             obj_name = "tensor_dict"
         elif comp in ["ma", "dr"]:
-            dic = None
+            dic = {}
             for d in file_dir.iterdir():
                 if d.is_file():
-                    dic = pd.read_csv(d, index_col=0)
-                    break
+                    dic[d.stem] = pd.read_csv(d)
             obj_name = "manifold" if comp == "ma" else "d_regulation"
         else:
             raise ValueError("The component is not a valid one")
@@ -101,12 +100,10 @@ class scBase:
         kwarg_props = {k: kwargs.pop(k)
                        for k in cls.cls_prop if k in kwargs}
         ins = cls(**kwargs)
-        for step_name in list(ins.step_comps.keys()):
-            comp_dir = parent_dir / step_name
-            if comp_dir.exists():
-                dic, attr_name = cls._load_comp(comp_dir, step_name)
-                setattr(ins, attr_name, dic)
-                ins.step_comps[step_name] = dic
+        for name, obj in ins.step_comps.items():
+            if (file_dir / Path(name)).exists():
+                dic, name = cls._load_comp(file_dir / Path(name), name)
+                setattr(ins, name, dic)
         for k, prop in kwarg_props.items():
             setattr(ins, k, prop)
         return ins
@@ -183,7 +180,7 @@ class scBase:
 
         if comps == "all":
             comps = [k for k, v in self.step_comps.items()
-                     if v is not None and (not isinstance(v, dict) or len(v) != 0)]
+                     if v is not None or (isinstance(v, dict) and len(v) != 0)]
         for c in comps:
             subdir = dir_path / Path(c)
             subdir.mkdir(parents=True, exist_ok=True)
@@ -427,7 +424,7 @@ class scTenifoldKnk(scBase):
             self.tensor_dict["KO"] = strict_direction(self.tensor_dict["KO"], self.strict_lambda).T
             np.fill_diagonal(self.tensor_dict["KO"].values, 0)
         else:
-            raise ValueError("No such method")
+            ValueError("No such method")
 
     def run_step(self,
                  step_name: str,

@@ -121,6 +121,6 @@ def read_folder(file_dir,
             if k in fn.name:
                 fn_dic[k] = fn
 
-    return read_mtx(mtx_file_name=fn_dic[matrix_fn],
-                    gene_file_name=fn_dic[gene_fn],
-                    barcode_file_name=fn_dic[barcodes_fn])
+    return read_mtx(mtx_file_name=(dir_path / fn_dic[matrix_fn]).name,
+                    gene_file_name=(dir_path / fn_dic[gene_fn]).name,
+                    barcode_file_name=(dir_path / fn_dic[barcodes_fn]).name)
