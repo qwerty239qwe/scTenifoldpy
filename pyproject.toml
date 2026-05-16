@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scTenifoldpy"
-version = "0.2.0"
-description = "Python implementation of scTenifoldNet and scTenifoldKnk workflows."
+version = "0.3.0"
+description = "Python implementation of scTenifoldNet and scTenifoldKnk workflows, with optional scTenifoldXct cell-cell interaction support."
 readme = "README.md"
 requires-python = ">=3.9,<3.15"
 license = "MIT"
@@ -47,6 +47,7 @@ scTenifold = "scTenifold.__main__:app"
 [project.optional-dependencies]
 scanpy = ["scanpy>=1.9"]
 parallel-ray = ["ray>=2"]
+xct = ["scTenifoldXct>=0.2"]
 docs = ["mkdocs-jupyter>=0.24", "mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
 
 [dependency-groups]
