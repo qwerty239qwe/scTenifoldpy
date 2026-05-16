@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.3.0
+
+### API
+
+- **scTenifoldXct** (cell-cell interaction prediction) is now available
+  through `scTenifoldpy`. It is **not vendored**: the separately
+  maintained PyPI package `scTenifoldXct` is declared as the optional
+  `[xct]` extra and re-exported lazily, so
+  `from scTenifold import scTenifoldXct` returns the exact same class
+  and results as the standalone package.
+- New lazily re-exported names: `scTenifoldXct`, `merge_scTenifoldXct`,
+  `set_seed`, `get_Xct_pairs`, `plot_XNet`. Accessing them without the
+  extra raises an actionable `ImportError`.
+
+### Packaging
+
+- New optional extra `xct = ["scTenifoldXct>=0.2"]` (pulls torch,
+  scanpy, anndata, ray, ... transitively). The base install stays
+  lightweight and torch-free; the extra requires Python >= 3.10.
+
+### CLI
+
+- New `scTenifold xct` / `scTenifold xct-merge` subcommands — thin
+  passthroughs to the external package.
+
+### Tests
+
+- New `test_xct` integration-contract suite; auto-skips without the
+  extra. A dedicated CI job runs it on Python 3.10-3.12.
+
 ## 0.2.0
 
 ### Packaging
