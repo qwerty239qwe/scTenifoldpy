@@ -31,11 +31,17 @@ pip install scTenifoldpy
 |---|---|---|
 | ``scanpy`` | ``scanpy>=1.9`` for AnnData interop | ``uv pip install "scTenifoldpy[scanpy]"`` |
 | ``parallel-ray`` | ``ray>=2`` for the ``"ray"`` network-construction backend | ``uv pip install "scTenifoldpy[parallel-ray]"`` |
+| ``xct`` | ``torch``, ``scanpy``, ``anndata``, ``ray``, ``statsmodels``, ``tqdm``, ``igraph``, ``cairocffi`` for the scTenifoldXct cell-cell interaction workflow | ``uv pip install "scTenifoldpy[xct]"`` |
 | ``docs`` | ``mkdocs-material`` and ``mkdocstrings`` for building these docs | ``uv pip install "scTenifoldpy[docs]"`` |
 
 The equivalent pip commands are ``pip install "scTenifoldpy[scanpy]"``,
-``pip install "scTenifoldpy[parallel-ray]"``, and
+``pip install "scTenifoldpy[parallel-ray]"``,
+``pip install "scTenifoldpy[xct]"``, and
 ``pip install "scTenifoldpy[docs]"``.
+
+The ``xct`` extra requires **Python >= 3.10** (PyTorch / scanpy). The
+core install keeps its 3.9-3.14 support; scTenifoldXct symbols are
+imported lazily, so the Net/Knk workflows never pull in torch.
 
 Joblib backends (``joblib-loky`` and ``joblib-threading``) need no extra
 dependency; ``joblib`` is a transitive dependency of ``scikit-learn``.

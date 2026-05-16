@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/github/license/qwerty239qwe/scTenifoldpy.svg)](LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.1016/j.patter.2020.100139-blue)](https://www.sciencedirect.com/science/article/pii/S2666389920301872)
 
-`scTenifoldpy` is a Python implementation of scTenifoldNet and scTenifoldKnk workflows.
+`scTenifoldpy` is a Python implementation of the scTenifold suite: **scTenifoldNet** (cross-condition GRN comparison), **scTenifoldKnk** (virtual knockout), and **scTenifoldXct** (cell-cell interaction prediction).
 
 ## Installation
 
@@ -33,6 +33,14 @@ uv add "scTenifoldpy[parallel-ray]"
 # or use pip
 pip install "scTenifoldpy[scanpy]"
 pip install "scTenifoldpy[parallel-ray]"
+```
+
+The `scTenifoldXct` cell-cell interaction workflow has heavier
+dependencies (PyTorch, scanpy) shipped behind the `xct` extra
+(requires Python >= 3.10):
+
+```bash
+pip install "scTenifoldpy[xct]"
 ```
 
 
@@ -104,6 +112,28 @@ knockout = virtual_knockout(
 )
 ```
 
+## Cell-Cell Interaction (scTenifoldXct)
+
+```python
+import scanpy as sc
+from scTenifold import scTenifoldXct
+
+adata = sc.read_h5ad("log_normalised.h5ad")
+xct = scTenifoldXct(
+    data=adata,
+    source_celltype="cell_A",
+    target_celltype="cell_B",
+    obs_label="ident",
+    rebuild_GRN=True,
+    GRN_file_dir="./xct_results",
+)
+xct.get_embeds(train=True)
+enriched = xct.chi2_test()
+```
+
+See [the scTenifoldXct guide](docs/xct.md) for the CLI and differential
+(two-sample) analysis. Requires `scTenifoldpy[xct]`.
+
 ## Parallel Backends
 
 Network construction defaults to deterministic serial execution:
@@ -123,6 +153,7 @@ Supported backends are `serial`, `joblib-loky`, `joblib-threading`, and `ray`. R
 scTenifold config -t 1 -p ./net_config.yml
 scTenifold net -c ./net_config.yml -o ./output_folder
 scTenifold knk -c ./knk_config.yml -o ./output_folder
+scTenifold xct data.h5ad -s cell_A -r cell_B -l ident   # needs [xct]
 ```
 
 ## Citation
@@ -146,3 +177,11 @@ Huang, J. Z., & Cai, J. J. (2022). scTenifoldKnk: An efficient virtual
 knockout tool for gene function predictions via single-cell gene regulatory
 network perturbation. *Patterns*, 3(3), Article 100434.
 https://doi.org/10.1016/j.patter.2022.100434
+
+**scTenifoldXct**
+
+Yang, Y., Osorio, D., Long, W., Bai, M., Wang, F., Yan, X., Yang, S.,
+Chen, A., Zhang, P., Cai, J. J. (2023). scTenifoldXct: A semi-supervised
+method for predicting cell-cell interactions and mapping cellular
+communication graphs. *Cell Systems*, 14(4), 302-311.
+https://doi.org/10.1016/j.cels.2023.01.004

@@ -22,6 +22,7 @@ nav:
       - scTenifoldNet: source/2_build_network.ipynb
       - Virtual Knockout: source/3_knock_out.ipynb
       - Visualization: source/4_visualization.ipynb
+  - scTenifoldXct: xct.md
   - Pipeline Steps: pipeline-steps.md
   - AnnData Input: anndata.md
   - Parallel Backends: parallel-backends.md

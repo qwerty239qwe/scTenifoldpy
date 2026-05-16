@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.3.0
+
+### API
+
+- Added the third scTenifold-suite method, **scTenifoldXct**, for
+  cell-cell interaction prediction, vendored as the `scTenifold.xct`
+  subpackage.
+- New top-level exports (lazily imported): `scTenifoldXct`,
+  `merge_scTenifoldXct`, `set_seed`, `get_Xct_pairs`, `plot_XNet`.
+  Accessing them without the optional dependencies raises an
+  actionable `ImportError`.
+
+### Packaging
+
+- New optional extra `xct` bundling `torch`, `scanpy`, `anndata`,
+  `ray`, `statsmodels`, `tqdm`, `igraph`, `cairocffi`. The base
+  install stays lightweight and torch-free; the `xct` extra requires
+  Python >= 3.10.
+- Bundled ligand-receptor / transcription-factor databases shipped as
+  package data.
+
+### CLI
+
+- New `scTenifold xct` and `scTenifold xct-merge` subcommands.
+
+### Tests
+
+- New `test_xct` suite; auto-skips when the `xct` extra is absent. A
+  dedicated CI job exercises it on Python 3.10-3.12.
+
 ## 0.2.0
 
 ### Packaging
