@@ -20,6 +20,7 @@ pytest.importorskip("scanpy")
 import anndata
 import scanpy as sc
 import scTenifoldXct as ext
+from typer.testing import CliRunner
 
 from scTenifold import (scTenifoldXct, merge_scTenifoldXct,
                         set_seed, get_Xct_pairs, plot_XNet)
@@ -81,3 +82,49 @@ def test_construction_smoke(tmp_path):
     assert isinstance(obj._net_A, GRN)
     assert isinstance(obj._net_B, GRN)
     assert obj._net_A.shape == obj._net_B.shape
+
+
+def test_cli_xct_wires_args(monkeypatch):
+    """The `xct` command must hand a correctly-built arg namespace to scTenifoldXct."""
+    from scTenifold.__main__ import app
+
+    captured = {}
+    monkeypatch.setattr("scTenifoldXct.core.main",
+                        lambda args: captured.setdefault("args", args))
+
+    result = CliRunner().invoke(app, [
+        "xct", "sample.h5ad",
+        "-s", "cell_A", "-r", "cell_B", "-l", "ident",
+        "-w", "wd", "-o", "out_stem", "--no-rebuild",
+    ])
+
+    assert result.exit_code == 0, result.output
+    args = captured["args"]
+    assert (args.file, args.sender, args.receiver, args.label) == \
+        ("sample.h5ad", "cell_A", "cell_B", "ident")
+    assert (args.workdir, args.output) == ("wd", "out_stem")
+    assert args.rebuild is False
+    assert args.eva is False
+    assert (args.n_sample, args.n_feature) == (100, 3000)
+
+
+def test_cli_xct_merge_wires_args(monkeypatch):
+    """The `xct-merge` command must map the WT/KO condition arguments through."""
+    from scTenifold.__main__ import app
+
+    captured = {}
+    monkeypatch.setattr("scTenifoldXct.merge.main",
+                        lambda args: captured.setdefault("args", args))
+
+    result = CliRunner().invoke(app, [
+        "xct-merge", "sample.h5ad", "treatment", "WT", "KO",
+        "-s", "cell_A", "-r", "cell_B",
+    ])
+
+    assert result.exit_code == 0, result.output
+    args = captured["args"]
+    assert args.file == "sample.h5ad"
+    assert (args.cond_label, args.cond_WT, args.cond_KO) == ("treatment", "WT", "KO")
+    assert (args.sender, args.receiver) == ("cell_A", "cell_B")
+    assert args.eva is False
+    assert (args.n_sample, args.n_feature) == (100, 3000)
