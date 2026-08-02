@@ -15,7 +15,7 @@ from scTenifold.data import TestDataGenerator as _TestDataGenerator, fetch_data,
 
 
 def test_version_metadata():
-    assert scTenifold.__version__ == "0.2.0"
+    assert scTenifold.__version__ == "0.3.0"
 
 
 @pytest.mark.parametrize("backend", ["serial", "joblib-loky", "joblib-threading"])
