@@ -83,6 +83,50 @@ model = scTenifoldNet.load("./saved_net")
 print(model.d_regulation.head())
 ```
 
+## scTenifoldXct Commands
+
+These subcommands require the ``[xct]`` extra
+(``pip install "scTenifoldpy[xct]"``). They are thin passthroughs to the
+standalone `scTenifoldXct` package; the same commands are also available
+as `sctenifoldxct` if that package is installed directly.
+
+### Single-sample interaction analysis
+
+```bash
+scTenifold xct data.h5ad \
+    --sender cell_A \
+    --receiver cell_B \
+    --label ident \
+    --workdir ./xct_results \
+    --output xct_enriched
+```
+
+| Option | Short | Default | Description |
+|---|---|---|---|
+| ``--sender`` | ``-s`` | ``cell_A`` | Sender cell type label |
+| ``--receiver`` | ``-r`` | ``cell_B`` | Receiver cell type label |
+| ``--label`` | ``-l`` | ``ident`` | ``.obs`` column holding cell-type labels |
+| ``--workdir`` | ``-w`` | ``xct_results`` | Output directory for GRN files |
+| ``--output`` | ``-o`` | ``xct_enriched`` | Output file stem |
+| ``--n_cpus`` | | ``-1`` | CPUs for GRN construction (``-1`` = all) |
+| ``--rebuild/--no-rebuild`` | | rebuild | Rebuild gene regulatory networks |
+| ``--verbose`` | ``-v`` | false | Verbose output |
+
+### Two-sample differential interaction analysis
+
+```bash
+scTenifold xct-merge data.h5ad condition WT KO \
+    --sender cell_A \
+    --receiver cell_B \
+    --label ident
+```
+
+Positional arguments: `file`, `cond_label` (the `.obs` column distinguishing
+conditions), `cond_wt` (reference label), `cond_ko` (comparison label). All
+``--sender`` / ``--receiver`` / ``--label`` / ``--workdir`` / ``--output`` /
+``--n_cpus`` / ``--rebuild`` flags are the same as `xct` above (output
+defaults to ``xct_enriched_diff``).
+
 ## Data Path Conventions
 
 - A directory at ``x_data_path`` is treated as a 10x folder
