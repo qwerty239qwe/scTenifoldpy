@@ -9,6 +9,24 @@
 
 `scTenifoldpy` is a Python implementation of the scTenifold suite: **scTenifoldNet** (cross-condition GRN comparison), **scTenifoldKnk** (virtual knockout), and **scTenifoldXct** (cell-cell interaction prediction, provided via the separately maintained `scTenifoldXct` package).
 
+## Local Web UI
+
+Run scTenifoldNet, scTenifoldKnk, or plain GRN construction from a browser instead of code:
+
+```bash
+pip install "scTenifoldpy[ui]"
+sctenifold-ui
+```
+
+![scTenifoldpy local web UI: workflow picker (Net / Knk / GRN-only) and dataset step](docs/images/ui-screenshot.png)
+
+This opens a local page (`http://127.0.0.1:8000`) where you can try a
+bundled synthetic dataset or the real 10x PBMC3k dataset (the one behind
+the Seurat/Scanpy tutorials), or upload your own data as a genes-by-cells
+CSV or an AnnData `.h5ad` file. Pick a workflow, run it, and download the
+ranked-gene or ranked-edge results as CSV. Everything runs locally; no
+data leaves your machine. See [the UI guide](docs/ui.md) for details.
+
 ## Installation
 
 ```bash
@@ -162,22 +180,6 @@ scTenifold net -c ./net_config.yml -o ./output_folder
 scTenifold knk -c ./knk_config.yml -o ./output_folder
 scTenifold xct data.h5ad -s cell_A -r cell_B -l ident   # needs [xct]
 ```
-
-## Local Web UI
-
-Run scTenifoldNet, scTenifoldKnk, or plain GRN construction from a browser instead of code:
-
-```bash
-pip install "scTenifoldpy[ui]"
-sctenifold-ui
-```
-
-This opens a local page (`http://127.0.0.1:8000`) where you can try a
-bundled synthetic dataset or the real 10x PBMC3k dataset (the one behind
-the Seurat/Scanpy tutorials), or upload your own data as a genes-by-cells
-CSV or an AnnData `.h5ad` file. Pick a workflow, run it, and download the
-ranked-gene results as CSV. Everything runs locally; no data leaves your
-machine. See [the UI guide](docs/ui.md) for details.
 
 ## Citation
 

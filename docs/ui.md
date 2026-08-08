@@ -4,6 +4,8 @@
 scTenifoldKnk, or plain gene regulatory network (GRN) construction
 without writing any code.
 
+![scTenifoldpy local web UI: workflow picker (Net / Knk / GRN-only) and dataset step](images/ui-screenshot.png)
+
 ## Install & Launch
 
 ```bash
