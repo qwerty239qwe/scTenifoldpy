@@ -85,13 +85,19 @@ def test_upload_dataset_accepts_valid_csv(client):
 def test_upload_dataset_accepts_valid_h5ad(client, tmp_path):
     anndata = pytest.importorskip("anndata")
     import numpy as np
+    import pandas as pd
 
-    # AnnData convention: X is cells (obs) x genes (var).
-    adata = anndata.AnnData(X=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]))
-    adata.obs_names = ["cellA", "cellB", "cellC"]
-    adata.var_names = ["G1", "G2"]
-    h5ad_path = tmp_path / "data.h5ad"
-    adata.write_h5ad(h5ad_path)
+    # AnnData convention: X is cells (obs) x genes (var). Force classic
+    # object-dtype string indices: some pandas builds default
+    # 'future.infer_string' to True, which produces a nullable StringArray
+    # index that this anndata version can't write (independent of the
+    # actual product code path being tested here).
+    with pd.option_context("future.infer_string", False):
+        adata = anndata.AnnData(X=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]))
+        adata.obs_names = ["cellA", "cellB", "cellC"]
+        adata.var_names = ["G1", "G2"]
+        h5ad_path = tmp_path / "data.h5ad"
+        adata.write_h5ad(h5ad_path)
 
     with open(h5ad_path, "rb") as fh:
         resp = client.post("/api/datasets", files={"file": ("data.h5ad", fh, "application/octet-stream")})
