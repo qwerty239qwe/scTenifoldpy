@@ -217,3 +217,34 @@ def test_knk_job_full_round_trip(client):
     resp = client.get(f"/api/jobs/{job_id}/result")
     assert resp.status_code == 200
     assert len(resp.json()["rows"]) > 0
+
+
+def test_grn_job_full_round_trip(client):
+    datasets = client.get("/api/datasets/example").json()
+    job_id = _run_job_to_completion(
+        client,
+        {
+            "workflow": "grn",
+            "dataset_id": datasets[0]["dataset_id"],
+            "min_lib_size": 10,
+        },
+    )
+
+    resp = client.get(f"/api/jobs/{job_id}/result")
+    assert resp.status_code == 200
+    rows = resp.json()["rows"]
+    assert len(rows) > 0
+    assert {"source", "target", "weight"} <= rows[0].keys()
+
+    resp = client.get(f"/api/jobs/{job_id}/result.csv")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    assert resp.text.splitlines()[0] == "Source,Target,Weight"
+
+
+def test_grn_job_does_not_require_dataset_id_y_or_ko_genes(client):
+    datasets = client.get("/api/datasets/example").json()
+    resp = client.post(
+        "/api/jobs", json={"workflow": "grn", "dataset_id": datasets[0]["dataset_id"]}
+    )
+    assert resp.status_code == 200, resp.text

@@ -19,17 +19,21 @@ from typing import Optional
 
 import pandas as pd
 
-from scTenifold import compare_networks, virtual_knockout
+from scTenifold import cal_pcNet, compare_networks, sc_QC, virtual_knockout
 
 from .schemas import JobCreate
 
 logger = logging.getLogger(__name__)
 
-# Stages surfaced to the UI as a simple progress indicator. compare_networks
-# / virtual_knockout run QC, network construction, decomposition and
-# alignment as one call, so there is no finer-grained progress to report.
+# Stages surfaced to the UI as a simple progress indicator. Each workflow
+# runs QC through its final step as one call, so there is no finer-grained
+# progress to report.
 STAGE_QUEUED = "queued"
-STAGE_RUNNING = "building networks, decomposing tensors, aligning manifolds"
+STAGE_RUNNING = {
+    "net": "building networks, decomposing tensors, aligning manifolds",
+    "knk": "building networks, decomposing tensors, aligning manifolds",
+    "grn": "running QC and building the gene regulatory network",
+}
 STAGE_DONE = "done"
 
 
@@ -103,8 +107,8 @@ class JobManager:
 
     def _run(self, job: Job, x_df: pd.DataFrame, y_df: Optional[pd.DataFrame]) -> None:
         job.status = "running"
-        job.set_stage(STAGE_RUNNING)
         params = job.params
+        job.set_stage(STAGE_RUNNING[params.workflow])
         # plot=False: QC's histogram plotting uses an interactive matplotlib
         # backend, which cannot create GUI windows off the main thread.
         qc_kws = {"min_lib_size": params.min_lib_size, "min_percent": params.min_percent, "plot": False}
@@ -123,7 +127,7 @@ class JobManager:
                     qc_kws=qc_kws,
                     network_kws=network_kws,
                 )
-            else:
+            elif params.workflow == "knk":
                 df = virtual_knockout(
                     x_df,
                     ko_genes=params.ko_genes,
@@ -132,6 +136,8 @@ class JobManager:
                     qc_kws=qc_kws,
                     network_kws=network_kws,
                 )
+            else:
+                df = self._build_grn(x_df, params, qc_kws)
             job.result = df
             job.set_stage(STAGE_DONE)
             job.status = "done"
@@ -139,3 +145,23 @@ class JobManager:
             logger.exception("job %s failed", job.id)
             job.error = str(exc)
             job.status = "error"
+
+    @staticmethod
+    def _build_grn(x_df: pd.DataFrame, params: JobCreate, qc_kws: dict) -> pd.DataFrame:
+        """Run QC then build a single consensus gene regulatory network.
+
+        Unlike 'net'/'knk', there's only one network to build (no
+        resampling across many networks), so 'backend'/'n_jobs' don't
+        apply here.
+        """
+        # sc_QC (unlike the scTenifoldNet/Knk classes' _QC wrapper) has no
+        # 'plot' kwarg of its own.
+        qc_df = sc_QC(x_df, min_lib_size=qc_kws["min_lib_size"], min_percent=qc_kws["min_percent"])
+        network = cal_pcNet(qc_df, random_state=params.random_state).tocoo()
+        gene_names = qc_df.index.to_numpy()
+        edges = pd.DataFrame({
+            "Source": gene_names[network.row],
+            "Target": gene_names[network.col],
+            "Weight": network.data,
+        })
+        return edges.sort_values("Weight", key=abs, ascending=False).reset_index(drop=True)

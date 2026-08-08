@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,7 @@ class DatasetInfo(BaseModel):
 
 
 class JobCreate(BaseModel):
-    workflow: Literal["net", "knk"]
+    workflow: Literal["net", "knk", "grn"]
     dataset_id: str
     dataset_id_y: Optional[str] = Field(None, description="required for the 'net' workflow")
     x_label: str = "X"
@@ -52,7 +52,15 @@ class GeneResultRow(BaseModel):
     adjusted_p_value: float
 
 
+class EdgeResultRow(BaseModel):
+    """One edge of a 'grn' workflow's inferred gene regulatory network."""
+
+    source: str
+    target: str
+    weight: float
+
+
 class JobResult(BaseModel):
     job_id: str
     workflow: str
-    rows: list[GeneResultRow]
+    rows: Union[list[GeneResultRow], list[EdgeResultRow]]

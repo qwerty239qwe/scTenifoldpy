@@ -165,7 +165,7 @@ scTenifold xct data.h5ad -s cell_A -r cell_B -l ident   # needs [xct]
 
 ## Local Web UI
 
-Run scTenifoldNet/scTenifoldKnk from a browser instead of code:
+Run scTenifoldNet, scTenifoldKnk, or plain GRN construction from a browser instead of code:
 
 ```bash
 pip install "scTenifoldpy[ui]"

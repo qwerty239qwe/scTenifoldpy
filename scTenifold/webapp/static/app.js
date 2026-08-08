@@ -9,23 +9,39 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 
+const DATASET_SECTION_HINTS = {
+  net: "scTenifoldNet compares two samples — e.g. control vs. treatment. Provide a Dataset X (first condition) and a Dataset Y (second condition) below.",
+  knk: "scTenifoldKnk only needs a single sample: it simulates knocking a gene out of Dataset X and compares the gene network before/after.",
+  grn: "Just infers the gene regulatory network from a single sample (Dataset X) — no second condition, no knockout.",
+};
+
+const DATASET_X_ROLES = {
+  net: "— the first condition",
+  knk: "— the sample to knock a gene out of",
+  grn: "— the sample to build a network from",
+};
+
 function setWorkflow(workflow) {
   state.workflow = workflow;
   const isNet = workflow === "net";
+  const isKnk = workflow === "knk";
+  const isGrn = workflow === "grn";
 
   $("dataset-y-slot").hidden = !isNet;
   $("y-label-field").hidden = !isNet;
   $("x-label-field").hidden = !isNet;
-  $("ko-genes-group").hidden = isNet;
-  $("ko-method-field").hidden = isNet;
-  $("strict-lambda-field").hidden = isNet;
+  $("ko-genes-group").hidden = !isKnk;
+  $("ko-method-field").hidden = !isKnk;
+  $("strict-lambda-field").hidden = !isKnk;
+  // A single network has nothing to resample across, so parallel backend
+  // choice doesn't apply.
+  $("backend-field").hidden = isGrn;
+  $("n-jobs-field").hidden = isGrn;
 
-  $("dataset-section-hint").textContent = isNet
-    ? "scTenifoldNet compares two samples — e.g. control vs. treatment. Provide a Dataset X (first condition) and a Dataset Y (second condition) below."
-    : "scTenifoldKnk only needs a single sample: it simulates knocking a gene out of Dataset X and compares the gene network before/after.";
-  $("dataset-x-role").textContent = isNet ? "— the first condition" : "— the sample to knock a gene out of";
+  $("dataset-section-hint").textContent = DATASET_SECTION_HINTS[workflow];
+  $("dataset-x-role").textContent = DATASET_X_ROLES[workflow];
 
-  if (isNet) {
+  if (!isKnk) {
     state.koGenes.clear();
     renderKoGeneChips();
   }
@@ -174,8 +190,8 @@ async function useExampleDataset(event) {
 }
 
 function updateRunReadiness() {
-  const ready =
-    state.datasets.x !== null && (state.workflow === "knk" || state.datasets.y !== null);
+  const needsY = state.workflow === "net";
+  const ready = state.datasets.x !== null && (!needsY || state.datasets.y !== null);
   $("run-section").classList.toggle("hidden", !ready);
 }
 
@@ -215,11 +231,12 @@ function buildJobPayload() {
     payload.dataset_id_y = state.datasets.y.dataset_id;
     payload.x_label = $("x-label").value || "X";
     payload.y_label = $("y-label").value || "Y";
-  } else {
+  } else if (state.workflow === "knk") {
     payload.ko_genes = Array.from(state.koGenes);
     payload.ko_method = $("ko-method").value;
     payload.strict_lambda = Number($("strict-lambda").value);
   }
+  // 'grn' needs nothing beyond the base fields (dataset_id, QC, random_state).
   return payload;
 }
 
@@ -234,31 +251,41 @@ function setProgress(status, stage) {
 
 const RESULTS_ROW_LIMIT = 25;
 
+const GENE_COLUMNS = [
+  ["gene", "Gene"],
+  ["distance", "Distance"],
+  ["z", "Z"],
+  ["fc", "FC"],
+  ["p_value", "p-value"],
+  ["adjusted_p_value", "adj. p-value"],
+];
+
+const EDGE_COLUMNS = [
+  ["source", "Source"],
+  ["target", "Target"],
+  ["weight", "Weight"],
+];
+
 function renderResultsTable(rows) {
   const wrap = $("results-table-wrap");
   wrap.innerHTML = "";
+  const noun = state.workflow === "grn" ? "edge" : "gene";
   if (rows.length === 0) {
-    wrap.textContent = "No genes in result.";
+    wrap.textContent = `No ${noun}s in result.`;
     return;
   }
+  const columns = state.workflow === "grn" ? EDGE_COLUMNS : GENE_COLUMNS;
+  const sortedBy = state.workflow === "grn" ? "|edge weight|" : "p-value";
 
   const shown = rows.slice(0, RESULTS_ROW_LIMIT);
   const caption = document.createElement("p");
   caption.className = "hint";
   caption.textContent =
     rows.length > shown.length
-      ? `Showing top ${shown.length} of ${rows.length} genes (sorted by p-value). Download the CSV for the full table.`
-      : `${rows.length} gene${rows.length === 1 ? "" : "s"} (sorted by p-value).`;
+      ? `Showing top ${shown.length} of ${rows.length} ${noun}s (sorted by ${sortedBy}). Download the CSV for the full table.`
+      : `${rows.length} ${noun}${rows.length === 1 ? "" : "s"} (sorted by ${sortedBy}).`;
   wrap.appendChild(caption);
 
-  const columns = [
-    ["gene", "Gene"],
-    ["distance", "Distance"],
-    ["z", "Z"],
-    ["fc", "FC"],
-    ["p_value", "p-value"],
-    ["adjusted_p_value", "adj. p-value"],
-  ];
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");

@@ -4,7 +4,7 @@ Route layout:
     GET  /api/datasets/example       generate a small synthetic X/Y dataset pair
     GET  /api/datasets/pbmc3k        real 10x PBMC3k data, QC-filtered + downsampled
     POST /api/datasets               upload a genes-by-cells expression CSV or .h5ad
-    POST /api/jobs                   start a scTenifoldNet or scTenifoldKnk run
+    POST /api/jobs                   start a scTenifoldNet, scTenifoldKnk, or GRN-only run
     GET  /api/jobs/{id}              poll job status/stage
     GET  /api/jobs/{id}/result       ranked genes as JSON
     GET  /api/jobs/{id}/result.csv   ranked genes as a CSV download
@@ -31,6 +31,7 @@ from .jobs import DatasetNotFoundError, JobManager, JobNotFoundError
 from .pbmc3k import load_pbmc3k
 from .schemas import (
     DatasetInfo,
+    EdgeResultRow,
     GeneResultRow,
     JobCreate,
     JobCreated,
@@ -168,13 +169,14 @@ def create_app() -> FastAPI:
                 manager.get_dataset(params.dataset_id_y)
             except DatasetNotFoundError as exc:
                 raise HTTPException(404, f"unknown dataset_id_y {params.dataset_id_y!r}") from exc
-        else:
+        elif params.workflow == "knk":
             if not params.ko_genes:
                 raise HTTPException(400, "ko_genes is required for the 'knk' workflow")
             gene_names = set(x_df.index.astype(str))
             missing = [g for g in params.ko_genes if g not in gene_names]
             if missing:
                 raise HTTPException(400, f"knockout gene(s) not found in dataset: {missing}")
+        # 'grn' only needs dataset_id, already validated above.
 
         job_id = manager.submit(params)
         return JobCreated(job_id=job_id)
@@ -191,18 +193,24 @@ def create_app() -> FastAPI:
     def get_job_result(job_id: str):
         job = _require_finished_job(manager, job_id)
         df = job.result
-        rows = [
-            GeneResultRow(
-                gene=str(row["Gene"]),
-                distance=float(row["Distance"]),
-                boxcox_distance=float(row["boxcox-transformed distance"]),
-                z=float(row["Z"]),
-                fc=float(row["FC"]),
-                p_value=float(row["p-value"]),
-                adjusted_p_value=float(row["adjusted p-value"]),
-            )
-            for _, row in df.iterrows()
-        ]
+        if job.params.workflow == "grn":
+            rows = [
+                EdgeResultRow(source=str(row["Source"]), target=str(row["Target"]), weight=float(row["Weight"]))
+                for _, row in df.iterrows()
+            ]
+        else:
+            rows = [
+                GeneResultRow(
+                    gene=str(row["Gene"]),
+                    distance=float(row["Distance"]),
+                    boxcox_distance=float(row["boxcox-transformed distance"]),
+                    z=float(row["Z"]),
+                    fc=float(row["FC"]),
+                    p_value=float(row["p-value"]),
+                    adjusted_p_value=float(row["adjusted p-value"]),
+                )
+                for _, row in df.iterrows()
+            ]
         return JobResult(job_id=job_id, workflow=job.params.workflow, rows=rows)
 
     @app.get("/api/jobs/{job_id}/result.csv")

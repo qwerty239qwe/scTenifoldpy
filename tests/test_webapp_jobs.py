@@ -78,3 +78,24 @@ def test_submit_unknown_dataset_raises_before_running():
     params = JobCreate(workflow="knk", dataset_id="missing", ko_genes=["NG-1"])
     with pytest.raises(DatasetNotFoundError):
         manager.submit(params)
+
+
+def test_grn_job_runs_to_completion():
+    manager = JobManager()
+    df = get_test_df(n_cells=150, n_genes=150, random_state=1)
+    x_id = manager.add_dataset(df)
+    params = JobCreate(workflow="grn", dataset_id=x_id, min_lib_size=10)
+
+    job_id = manager.submit(params)
+    job = _wait_for(manager, job_id)
+
+    assert job.status == "done"
+    assert job.error is None
+    assert list(job.result.columns) == ["Source", "Target", "Weight"]
+    assert len(job.result) > 0
+    gene_names = set(df.index.astype(str))
+    assert set(job.result["Source"]) <= gene_names
+    assert set(job.result["Target"]) <= gene_names
+    # sorted by |weight| descending
+    weights = job.result["Weight"].abs().to_numpy()
+    assert (weights[:-1] >= weights[1:]).all()
