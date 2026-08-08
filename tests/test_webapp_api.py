@@ -50,11 +50,20 @@ def test_example_datasets_endpoint(client):
     assert all(d["n_genes"] > 0 and d["n_cells"] > 0 for d in datasets)
 
 
-def test_upload_dataset_rejects_non_csv(client):
+def test_upload_dataset_rejects_unsupported_extension(client):
     resp = client.post(
-        "/api/datasets", files={"file": ("data.h5ad", io.BytesIO(b"not a csv"), "application/octet-stream")}
+        "/api/datasets", files={"file": ("data.txt", io.BytesIO(b"not a csv"), "text/plain")}
     )
     assert resp.status_code == 400
+    assert "only .csv or .h5ad" in resp.json()["detail"]
+
+
+def test_upload_dataset_rejects_corrupt_h5ad(client):
+    resp = client.post(
+        "/api/datasets", files={"file": ("data.h5ad", io.BytesIO(b"not an h5ad file"), "application/octet-stream")}
+    )
+    assert resp.status_code == 400
+    assert "could not parse .h5ad" in resp.json()["detail"]
 
 
 def test_upload_dataset_rejects_non_numeric_columns(client):
@@ -71,6 +80,55 @@ def test_upload_dataset_accepts_valid_csv(client):
     assert info["n_genes"] == 2
     assert info["n_cells"] == 3
     assert info["gene_names"] == ["G1", "G2"]
+
+
+def test_upload_dataset_accepts_valid_h5ad(client, tmp_path):
+    anndata = pytest.importorskip("anndata")
+    import numpy as np
+
+    # AnnData convention: X is cells (obs) x genes (var).
+    adata = anndata.AnnData(X=np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]))
+    adata.obs_names = ["cellA", "cellB", "cellC"]
+    adata.var_names = ["G1", "G2"]
+    h5ad_path = tmp_path / "data.h5ad"
+    adata.write_h5ad(h5ad_path)
+
+    with open(h5ad_path, "rb") as fh:
+        resp = client.post("/api/datasets", files={"file": ("data.h5ad", fh, "application/octet-stream")})
+    assert resp.status_code == 200, resp.text
+    info = resp.json()
+    # anndata_to_dataframe transposes: genes (var_names) become rows, cells (obs_names) become columns.
+    assert info["n_genes"] == 2
+    assert info["n_cells"] == 3
+    assert info["gene_names"] == ["G1", "G2"]
+
+
+def test_pbmc3k_endpoint_uses_loader_and_splits_in_half(client, monkeypatch):
+    import pandas as pd
+
+    fake_df = pd.DataFrame(
+        {f"cell{i}": [1, 2, 3] for i in range(6)}, index=["MS4A1", "CD3D", "LYZ"]
+    )
+    monkeypatch.setattr("scTenifold.webapp.main.load_pbmc3k", lambda: fake_df)
+
+    resp = client.get("/api/datasets/pbmc3k")
+    assert resp.status_code == 200
+    datasets = resp.json()
+    assert len(datasets) == 2
+    assert datasets[0]["n_cells"] == 3
+    assert datasets[1]["n_cells"] == 3
+    assert datasets[0]["gene_names"] == ["MS4A1", "CD3D", "LYZ"]
+
+
+def test_pbmc3k_endpoint_surfaces_download_failures(client, monkeypatch):
+    def _boom():
+        raise ValueError("could not download the PBMC3k dataset: network is down")
+
+    monkeypatch.setattr("scTenifold.webapp.main.load_pbmc3k", _boom)
+
+    resp = client.get("/api/datasets/pbmc3k")
+    assert resp.status_code == 502
+    assert "could not download" in resp.json()["detail"]
 
 
 def test_create_job_unknown_dataset_returns_404(client):

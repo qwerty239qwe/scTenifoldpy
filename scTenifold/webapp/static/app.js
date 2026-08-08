@@ -122,9 +122,19 @@ async function uploadDataset(slot, file) {
   updateRunReadiness();
 }
 
-async function useExampleDataset() {
+const EXAMPLE_HINTS = {
+  "/api/datasets/example": "",
+  "/api/datasets/pbmc3k":
+    "Real 10x PBMC3k data (Seurat/Scanpy tutorial dataset), QC-filtered and downsampled for speed. " +
+    "For the 'net' workflow it's split into two random halves — a demo of the pipeline, not two real conditions. " +
+    "First load downloads ~7 MB and may take a few seconds.",
+};
+
+async function useExampleDataset(event) {
+  const source = event.currentTarget.dataset.source;
+  $("example-hint").textContent = EXAMPLE_HINTS[source] || "";
   try {
-    const [xInfo, yInfo] = await apiFetch("/api/datasets/example");
+    const [xInfo, yInfo] = await apiFetch(source);
     state.datasets.x = xInfo;
     renderDatasetInfo("x", xInfo);
     populateGeneList(xInfo.gene_names);
@@ -303,6 +313,7 @@ function init() {
     radio.addEventListener("change", (e) => setWorkflow(e.target.value));
   }
   $("use-example").addEventListener("click", useExampleDataset);
+  $("use-pbmc3k").addEventListener("click", useExampleDataset);
   $("file-input-x").addEventListener("change", (e) => {
     if (e.target.files[0]) uploadDataset("x", e.target.files[0]);
   });

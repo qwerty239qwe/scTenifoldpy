@@ -32,23 +32,25 @@
     <section id="dataset-section">
       <h2><span class="step">2</span> Dataset</h2>
       <div class="row">
-        <button id="use-example" type="button">Use synthetic example dataset</button>
+        <button id="use-example" type="button" data-source="/api/datasets/example">Use synthetic example dataset</button>
+        <button id="use-pbmc3k" type="button" data-source="/api/datasets/pbmc3k">Use PBMC3k example (real 10x data)</button>
         <span class="or">or upload your own</span>
       </div>
+      <p class="hint" id="example-hint"></p>
 
       <div class="dataset-grid">
         <div class="dataset-slot" id="dataset-x-slot">
           <label class="file-input" for="file-input-x" id="dataset-x-label">
-            Upload dataset (.csv, genes as rows)
-            <input type="file" id="file-input-x" accept=".csv">
+            Upload dataset (.csv, genes as rows; or .h5ad AnnData)
+            <input type="file" id="file-input-x" accept=".csv,.h5ad">
           </label>
           <p class="dataset-error error hidden" id="dataset-x-error"></p>
           <p class="dataset-info info hidden" id="dataset-x-info"></p>
         </div>
         <div class="dataset-slot" id="dataset-y-slot">
           <label class="file-input" for="file-input-y" id="dataset-y-label">
-            Upload comparison dataset Y (.csv)
-            <input type="file" id="file-input-y" accept=".csv">
+            Upload comparison dataset Y (.csv or .h5ad)
+            <input type="file" id="file-input-y" accept=".csv,.h5ad">
           </label>
           <p class="dataset-error error hidden" id="dataset-y-error"></p>
           <p class="dataset-info info hidden" id="dataset-y-info"></p>

@@ -49,7 +49,7 @@ sctenifold-ui = "scTenifold.webapp.cli:main"
 scanpy = ["scanpy>=1.9"]
 parallel-ray = ["ray>=2"]
 xct = ["scTenifoldXct>=0.2; python_version >= '3.10'"]
-ui = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9"]
+ui = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9", "anndata>=0.10"]
 docs = ["mkdocs-jupyter>=0.24", "mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
 
 [dependency-groups]

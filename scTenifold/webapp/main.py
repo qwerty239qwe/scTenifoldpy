@@ -2,7 +2,8 @@
 
 Route layout:
     GET  /api/datasets/example       generate a small synthetic X/Y dataset pair
-    POST /api/datasets               upload a genes-by-cells expression CSV
+    GET  /api/datasets/pbmc3k        real 10x PBMC3k data, QC-filtered + downsampled
+    POST /api/datasets               upload a genes-by-cells expression CSV or .h5ad
     POST /api/jobs                   start a scTenifoldNet or scTenifoldKnk run
     GET  /api/jobs/{id}              poll job status/stage
     GET  /api/jobs/{id}/result       ranked genes as JSON
@@ -14,6 +15,8 @@ from __future__ import annotations
 
 import io
 import logging
+import os
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -21,9 +24,11 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from scTenifold.core._networks import anndata_to_dataframe
 from scTenifold.data import get_test_df
 
 from .jobs import DatasetNotFoundError, JobManager, JobNotFoundError
+from .pbmc3k import load_pbmc3k
 from .schemas import (
     DatasetInfo,
     GeneResultRow,
@@ -36,7 +41,7 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-MAX_UPLOAD_BYTES = 200 * 1024 * 1024  # 200 MB
+MAX_UPLOAD_BYTES = 500 * 1024 * 1024  # 500 MB (raised from 200 MB to fit .h5ad uploads)
 
 
 def _dataset_info(dataset_id: str, name: str, df: pd.DataFrame) -> DatasetInfo:
@@ -49,22 +54,51 @@ def _dataset_info(dataset_id: str, name: str, df: pd.DataFrame) -> DatasetInfo:
     )
 
 
-def _read_expression_csv(raw: bytes) -> pd.DataFrame:
-    """Parse an uploaded genes-by-cells CSV (gene names in the first column)."""
-    try:
-        df = pd.read_csv(io.BytesIO(raw), index_col=0)
-    except Exception as exc:  # noqa: BLE001
-        raise ValueError(f"could not parse CSV: {exc}") from exc
+def _validate_expression_df(df: pd.DataFrame) -> pd.DataFrame:
     if df.shape[0] == 0 or df.shape[1] == 0:
         raise ValueError("dataset is empty")
     if not df.index.is_unique:
-        raise ValueError("gene names (first column) must be unique")
+        raise ValueError("gene names must be unique")
     non_numeric = df.select_dtypes(exclude="number").columns.tolist()
     if non_numeric:
         raise ValueError(
             f"non-numeric column(s) found: {non_numeric}; expected a genes-by-cells count matrix"
         )
     return df
+
+
+def _read_expression_csv(raw: bytes) -> pd.DataFrame:
+    """Parse an uploaded genes-by-cells CSV (gene names in the first column)."""
+    try:
+        df = pd.read_csv(io.BytesIO(raw), index_col=0)
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"could not parse CSV: {exc}") from exc
+    return _validate_expression_df(df)
+
+
+def _read_h5ad(raw: bytes) -> pd.DataFrame:
+    """Parse an uploaded AnnData .h5ad file (genes in .var, cells in .obs)."""
+    try:
+        import anndata
+    except ImportError as exc:
+        raise ValueError(
+            "reading .h5ad files needs the 'anndata' package: pip install \"scTenifoldpy[ui]\""
+        ) from exc
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".h5ad", delete=False)
+    try:
+        tmp.write(raw)
+        tmp.close()
+        try:
+            adata = anndata.read_h5ad(tmp.name)
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(f"could not parse .h5ad file: {exc}") from exc
+    finally:
+        os.unlink(tmp.name)
+
+    df = anndata_to_dataframe(adata)
+    df.index = df.index.astype(str)
+    return _validate_expression_df(df)
 
 
 def create_app() -> FastAPI:
@@ -84,15 +118,35 @@ def create_app() -> FastAPI:
             _dataset_info(y_id, "synthetic-Y", y_df),
         ]
 
+    @app.get("/api/datasets/pbmc3k", response_model=list[DatasetInfo])
+    def load_pbmc3k_example():
+        """Real 10x PBMC3k data (the Seurat/Scanpy tutorial dataset), QC-filtered
+        and downsampled for a fast local demo, split into two random halves so
+        it can also be used with the 'net' workflow."""
+        try:
+            df = load_pbmc3k()
+        except ValueError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+        half = df.shape[1] // 2
+        x_df, y_df = df.iloc[:, :half], df.iloc[:, half:]
+        x_id = manager.add_dataset(x_df)
+        y_id = manager.add_dataset(y_df)
+        return [
+            _dataset_info(x_id, "pbmc3k-A", x_df),
+            _dataset_info(y_id, "pbmc3k-B", y_df),
+        ]
+
     @app.post("/api/datasets", response_model=DatasetInfo)
     async def upload_dataset(file: UploadFile):
-        if not file.filename.endswith(".csv"):
-            raise HTTPException(400, "only .csv files are supported (genes as rows, cells as columns)")
+        suffix = Path(file.filename).suffix.lower()
+        if suffix not in (".csv", ".h5ad"):
+            raise HTTPException(400, "only .csv or .h5ad files are supported")
         raw = await file.read()
         if len(raw) > MAX_UPLOAD_BYTES:
-            raise HTTPException(413, "file too large (limit 200 MB)")
+            raise HTTPException(413, "file too large (limit 500 MB)")
         try:
-            df = _read_expression_csv(raw)
+            df = _read_h5ad(raw) if suffix == ".h5ad" else _read_expression_csv(raw)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
 
