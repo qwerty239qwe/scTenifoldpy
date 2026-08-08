@@ -24,7 +24,20 @@ function setWorkflow(workflow) {
     state.koGenes.clear();
     renderKoGeneChips();
   }
+  resetResults();
   updateRunReadiness();
+}
+
+function resetResults() {
+  $("results-section").classList.add("hidden");
+  $("results-error").classList.add("hidden");
+  $("results-error").textContent = "";
+  $("results-table-wrap").innerHTML = "";
+  $("download-csv").classList.add("hidden");
+  $("progress-wrap").classList.add("hidden");
+  $("progress-fill").style.width = "10%";
+  $("progress-fill").classList.remove("error");
+  $("status-bar").textContent = "";
 }
 
 async function apiFetch(path, options) {
@@ -184,12 +197,25 @@ function setProgress(status, stage) {
   $("status-bar").textContent = stage ? `${status} — ${stage}` : status;
 }
 
+const RESULTS_ROW_LIMIT = 25;
+
 function renderResultsTable(rows) {
   const wrap = $("results-table-wrap");
+  wrap.innerHTML = "";
   if (rows.length === 0) {
     wrap.textContent = "No genes in result.";
     return;
   }
+
+  const shown = rows.slice(0, RESULTS_ROW_LIMIT);
+  const caption = document.createElement("p");
+  caption.className = "hint";
+  caption.textContent =
+    rows.length > shown.length
+      ? `Showing top ${shown.length} of ${rows.length} genes (sorted by p-value). Download the CSV for the full table.`
+      : `${rows.length} gene${rows.length === 1 ? "" : "s"} (sorted by p-value).`;
+  wrap.appendChild(caption);
+
   const columns = [
     ["gene", "Gene"],
     ["distance", "Distance"],
@@ -210,7 +236,7 @@ function renderResultsTable(rows) {
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  for (const row of rows) {
+  for (const row of shown) {
     const tr = document.createElement("tr");
     for (const [key] of columns) {
       const td = document.createElement("td");
@@ -222,7 +248,6 @@ function renderResultsTable(rows) {
   }
   table.appendChild(tbody);
 
-  wrap.innerHTML = "";
   wrap.appendChild(table);
 }
 
