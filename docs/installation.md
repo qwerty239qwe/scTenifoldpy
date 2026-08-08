@@ -32,11 +32,13 @@ pip install scTenifoldpy
 | ``scanpy`` | ``scanpy>=1.9`` for AnnData interop | ``uv pip install "scTenifoldpy[scanpy]"`` |
 | ``parallel-ray`` | ``ray>=2`` for the ``"ray"`` network-construction backend | ``uv pip install "scTenifoldpy[parallel-ray]"`` |
 | ``xct`` | the separately maintained ``scTenifoldXct`` package (pulls ``torch``, ``scanpy``, ``anndata``, ``ray``, ... transitively) for the cell-cell interaction workflow | ``uv pip install "scTenifoldpy[xct]"`` |
+| ``ui`` | ``fastapi``, ``uvicorn``, ``python-multipart`` for the local web UI (``sctenifold-ui``) | ``uv pip install "scTenifoldpy[ui]"`` |
 | ``docs`` | ``mkdocs-material`` and ``mkdocstrings`` for building these docs | ``uv pip install "scTenifoldpy[docs]"`` |
 
 The equivalent pip commands are ``pip install "scTenifoldpy[scanpy]"``,
 ``pip install "scTenifoldpy[parallel-ray]"``,
-``pip install "scTenifoldpy[xct]"``, and
+``pip install "scTenifoldpy[xct]"``,
+``pip install "scTenifoldpy[ui]"``, and
 ``pip install "scTenifoldpy[docs]"``.
 
 The ``xct`` extra requires **Python >= 3.10** (PyTorch / scanpy) and is
