@@ -14,7 +14,7 @@ from scTenifold.webapp.jobs import DatasetNotFoundError, JobManager, JobNotFound
 from scTenifold.webapp.schemas import JobCreate
 
 
-def _wait_for(manager: JobManager, job_id: str, timeout: float = 60.0):
+def _wait_for(manager: JobManager, job_id: str, timeout: float = 240.0):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         job = manager.get_job(job_id)

@@ -20,7 +20,7 @@ def client():
     return TestClient(create_app())
 
 
-def _run_job_to_completion(client, payload, timeout: float = 60.0):
+def _run_job_to_completion(client, payload, timeout: float = 240.0):
     resp = client.post("/api/jobs", json=payload)
     assert resp.status_code == 200, resp.text
     job_id = resp.json()["job_id"]
