@@ -69,3 +69,28 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: xct
+
+  test-ui:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.14"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+    - name: Install dependencies with the ui extra
+      run: uv sync --group test --extra ui
+    - name: Test local web UI
+      run: uv run pytest tests/test_webapp_jobs.py tests/test_webapp_api.py tests/test_webapp_cli.py -v --cov=scTenifold --cov-report=xml
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        flags: ui

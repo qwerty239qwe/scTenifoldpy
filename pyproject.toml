@@ -43,11 +43,13 @@ Issues = "https://github.com/qwerty239qwe/scTenifoldpy/issues"
 
 [project.scripts]
 scTenifold = "scTenifold.__main__:app"
+sctenifold-ui = "scTenifold.webapp.cli:main"
 
 [project.optional-dependencies]
 scanpy = ["scanpy>=1.9"]
 parallel-ray = ["ray>=2"]
 xct = ["scTenifoldXct>=0.2; python_version >= '3.10'"]
+ui = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9"]
 docs = ["mkdocs-jupyter>=0.24", "mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
 
 [dependency-groups]
@@ -56,11 +58,14 @@ dev = [
     "ruff>=0.6",
     "ty>=0.0.35",
 ]
-test = ["pytest>=7", "pytest-cov>=4"]
+test = ["pytest>=7", "pytest-cov>=4", "httpx>=0.27"]
 docs = ["mkdocs-jupyter>=0.24", "mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
 
 [tool.setuptools.packages.find]
 include = ["scTenifold*"]
+
+[tool.setuptools.package-data]
+scTenifold = ["webapp/static/*"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=scTenifold --cov-report=term-missing"
