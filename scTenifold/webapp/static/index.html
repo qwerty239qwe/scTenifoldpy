@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>scTenifoldpy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>scTenifoldpy</h1>
+    <p>scTenifoldNet &amp; scTenifoldKnk &mdash; local run, no data leaves this machine.</p>
+  </header>
+
+  <main>
+    <section id="workflow-section">
+      <h2><span class="step">1</span> Workflow</h2>
+      <div class="workflow-choice">
+        <label class="radio-card">
+          <input type="radio" name="workflow" value="net" checked>
+          <span class="title">Compare networks (scTenifoldNet)</span>
+          <span class="desc">Rank genes by differential regulation between two conditions.</span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="workflow" value="knk">
+          <span class="title">Virtual knockout (scTenifoldKnk)</span>
+          <span class="desc">Rank genes by predicted impact of knocking out one or more genes.</span>
+        </label>
+      </div>
+    </section>
+
+    <section id="dataset-section">
+      <h2><span class="step">2</span> Dataset</h2>
+      <div class="row">
+        <button id="use-example" type="button">Use synthetic example dataset</button>
+        <span class="or">or upload your own</span>
+      </div>
+
+      <div class="dataset-grid">
+        <div class="dataset-slot" id="dataset-x-slot">
+          <label class="file-input" for="file-input-x" id="dataset-x-label">
+            Upload dataset (.csv, genes as rows)
+            <input type="file" id="file-input-x" accept=".csv">
+          </label>
+          <p class="dataset-error error hidden" id="dataset-x-error"></p>
+          <p class="dataset-info info hidden" id="dataset-x-info"></p>
+        </div>
+        <div class="dataset-slot" id="dataset-y-slot">
+          <label class="file-input" for="file-input-y" id="dataset-y-label">
+            Upload comparison dataset Y (.csv)
+            <input type="file" id="file-input-y" accept=".csv">
+          </label>
+          <p class="dataset-error error hidden" id="dataset-y-error"></p>
+          <p class="dataset-info info hidden" id="dataset-y-info"></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="run-section" class="hidden">
+      <h2><span class="step">3</span> Configure run</h2>
+      <form id="run-form">
+        <div class="field-group" id="ko-genes-group" hidden>
+          <label class="field">
+            Gene(s) to knock out
+            <input list="gene-list" id="ko-gene-input" placeholder="type to search, press Enter to add" autocomplete="off">
+            <datalist id="gene-list"></datalist>
+          </label>
+          <div id="ko-gene-chips" class="chips"></div>
+        </div>
+
+        <div class="grid">
+          <label class="field" id="x-label-field">
+            X label
+            <input type="text" id="x-label" value="X">
+          </label>
+          <label class="field" id="y-label-field">
+            Y label
+            <input type="text" id="y-label" value="Y">
+          </label>
+          <label class="field" id="ko-method-field" hidden>
+            KO method
+            <select id="ko-method">
+              <option value="default" selected>default (zero out rows)</option>
+              <option value="propagation">propagation (rebuild networks)</option>
+            </select>
+          </label>
+          <label class="field" id="strict-lambda-field" hidden>
+            Strict lambda
+            <input type="number" id="strict-lambda" value="0" min="0" step="0.1">
+          </label>
+          <label class="field">
+            Min library size
+            <input type="number" id="min-lib-size" value="10" min="0">
+          </label>
+          <label class="field">
+            Min gene percent
+            <input type="number" id="min-percent" value="0.001" min="0" max="1" step="0.001">
+          </label>
+          <label class="field">
+            Backend
+            <select id="backend">
+              <option value="serial" selected>serial</option>
+              <option value="joblib-loky">joblib-loky</option>
+              <option value="joblib-threading">joblib-threading</option>
+            </select>
+          </label>
+          <label class="field">
+            # jobs
+            <input type="number" id="n-jobs" value="1" min="-1">
+          </label>
+          <label class="field">
+            Random state
+            <input type="number" id="random-state" value="42">
+          </label>
+        </div>
+
+        <button type="submit" id="run-button">Run</button>
+      </form>
+    </section>
+
+    <section id="results-section" class="hidden">
+      <h2><span class="step">4</span> Results</h2>
+      <div id="progress-wrap" class="progress-wrap hidden">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+      <p id="status-bar" class="status"></p>
+      <p id="results-error" class="error hidden"></p>
+      <div id="results-table-wrap"></div>
+      <a id="download-csv" class="hidden" download>Download CSV</a>
+    </section>
+  </main>
+
+  <footer>
+    scTenifoldpy &mdash; <a href="https://github.com/qwerty239qwe/scTenifoldpy" target="_blank" rel="noopener">source &amp; docs</a>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
