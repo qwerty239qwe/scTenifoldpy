@@ -20,6 +20,11 @@ function setWorkflow(workflow) {
   $("ko-method-field").hidden = isNet;
   $("strict-lambda-field").hidden = isNet;
 
+  $("dataset-section-hint").textContent = isNet
+    ? "scTenifoldNet compares two samples — e.g. control vs. treatment. Provide a Dataset X (first condition) and a Dataset Y (second condition) below."
+    : "scTenifoldKnk only needs a single sample: it simulates knocking a gene out of Dataset X and compares the gene network before/after.";
+  $("dataset-x-role").textContent = isNet ? "— the first condition" : "— the sample to knock a gene out of";
+
   if (isNet) {
     state.koGenes.clear();
     renderKoGeneChips();
