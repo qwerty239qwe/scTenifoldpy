@@ -123,6 +123,21 @@ h2 {
   font-size: 0.85rem;
 }
 
+.link-button {
+  background: none;
+  color: var(--accent-dark);
+  border: none;
+  padding: 0.55rem 0;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  background: none;
+  color: var(--accent);
+}
+
 button {
   background: var(--accent);
   color: #fff;
@@ -146,6 +161,10 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1rem;
+}
+
+.dataset-grid[hidden] {
+  display: none;
 }
 
 .dataset-slot[hidden] {

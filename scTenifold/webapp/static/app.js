@@ -107,6 +107,15 @@ function onKoGeneSelectChange() {
   renderKoGeneChips();
 }
 
+function setUploadGridVisible(visible) {
+  $("dataset-grid").hidden = !visible;
+  $("toggle-upload").setAttribute("aria-expanded", String(visible));
+}
+
+function toggleUploadGrid() {
+  setUploadGridVisible($("dataset-grid").hidden);
+}
+
 async function uploadDataset(slot, file) {
   const formData = new FormData();
   formData.append("file", file);
@@ -133,6 +142,16 @@ const EXAMPLE_HINTS = {
 async function useExampleDataset(event) {
   const source = event.currentTarget.dataset.source;
   $("example-hint").textContent = EXAMPLE_HINTS[source] || "";
+
+  // An example replaces any manual upload; collapse the upload boxes and
+  // clear their leftover info/error text so nothing stale lingers.
+  setUploadGridVisible(false);
+  for (const slot of ["x", "y"]) {
+    $(`dataset-${slot}-error`).classList.add("hidden");
+    $(`dataset-${slot}-info`).classList.add("hidden");
+    $(`file-input-${slot}`).value = "";
+  }
+
   try {
     const [xInfo, yInfo] = await apiFetch(source);
     state.datasets.x = xInfo;
@@ -143,6 +162,7 @@ async function useExampleDataset(event) {
       renderDatasetInfo("y", yInfo);
     }
   } catch (err) {
+    setUploadGridVisible(true);
     renderDatasetInfo("x", null, err.message);
   }
   updateRunReadiness();
@@ -314,6 +334,7 @@ function init() {
   }
   $("use-example").addEventListener("click", useExampleDataset);
   $("use-pbmc3k").addEventListener("click", useExampleDataset);
+  $("toggle-upload").addEventListener("click", toggleUploadGrid);
   $("file-input-x").addEventListener("change", (e) => {
     if (e.target.files[0]) uploadDataset("x", e.target.files[0]);
   });

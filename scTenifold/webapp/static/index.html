@@ -34,11 +34,11 @@
       <div class="row">
         <button id="use-example" type="button" data-source="/api/datasets/example">Use synthetic example dataset</button>
         <button id="use-pbmc3k" type="button" data-source="/api/datasets/pbmc3k">Use PBMC3k example (real 10x data)</button>
-        <span class="or">or upload your own</span>
+        <button id="toggle-upload" type="button" class="link-button" aria-expanded="false">or upload your own</button>
       </div>
       <p class="hint" id="example-hint"></p>
 
-      <div class="dataset-grid">
+      <div class="dataset-grid" id="dataset-grid" hidden>
         <div class="dataset-slot" id="dataset-x-slot">
           <label class="file-input" for="file-input-x" id="dataset-x-label">
             Upload dataset (.csv, genes as rows; or .h5ad AnnData)
