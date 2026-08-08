@@ -60,8 +60,11 @@
       <h2><span class="step">3</span> Configure run</h2>
       <form id="run-form">
         <div class="field-group" id="ko-genes-group" hidden>
-          <label class="field" title="Genes to knock out. Type to filter, then click (or Cmd/Ctrl-click for more than one) in the list below to select.">
-            Gene(s) to knock out <span class="default-hint">(select one or more)</span>
+          <label class="field">
+            <span class="field-label">
+              Gene(s) to knock out <span class="default-hint">(select one or more)</span>
+              <button type="button" class="info-icon" aria-label="Type to filter, then click (or Cmd/Ctrl-click for more than one) in the list below to select genes to knock out.">?</button>
+            </span>
             <input type="text" id="ko-gene-filter" placeholder="filter genes…" autocomplete="off">
             <select id="ko-gene-select" multiple size="8"></select>
           </label>
@@ -70,47 +73,74 @@
         </div>
 
         <div class="grid">
-          <label class="field" id="x-label-field" title="Label used for the first/reference condition in the results table.">
-            X label <span class="default-hint">(default: X)</span>
+          <label class="field" id="x-label-field">
+            <span class="field-label">
+              X label <span class="default-hint">(default: X)</span>
+              <button type="button" class="info-icon" aria-label="Label used for the first/reference condition in the results table.">?</button>
+            </span>
             <input type="text" id="x-label" value="X">
           </label>
-          <label class="field" id="y-label-field" title="Label used for the second condition being compared against X.">
-            Y label <span class="default-hint">(default: Y)</span>
+          <label class="field" id="y-label-field">
+            <span class="field-label">
+              Y label <span class="default-hint">(default: Y)</span>
+              <button type="button" class="info-icon" aria-label="Label used for the second condition being compared against X.">?</button>
+            </span>
             <input type="text" id="y-label" value="Y">
           </label>
-          <label class="field" id="ko-method-field" hidden title="How the knockout tensor is built: zeroing out rows is faster; rebuilding networks is more thorough but slower.">
-            KO method
+          <label class="field" id="ko-method-field" hidden>
+            <span class="field-label">
+              KO method
+              <button type="button" class="info-icon" aria-label="How the knockout tensor is built: zeroing out rows is faster; rebuilding networks is more thorough but slower.">?</button>
+            </span>
             <select id="ko-method">
               <option value="default" selected>zero out rows (default)</option>
               <option value="propagation">rebuild networks</option>
             </select>
           </label>
-          <label class="field" id="strict-lambda-field" hidden title="Strength of directional pruning applied to the wild-type network before knockout. 0 disables pruning.">
-            Strict lambda <span class="default-hint">(default: 0)</span>
+          <label class="field" id="strict-lambda-field" hidden>
+            <span class="field-label">
+              Strict lambda <span class="default-hint">(default: 0)</span>
+              <button type="button" class="info-icon" aria-label="Strength of directional pruning applied to the wild-type network before knockout. 0 disables pruning.">?</button>
+            </span>
             <input type="number" id="strict-lambda" value="0" min="0" step="0.1">
           </label>
-          <label class="field" title="Minimum total counts a cell must have to survive QC; cells below this are dropped.">
-            Min library size <span class="default-hint">(default: 10)</span>
+          <label class="field">
+            <span class="field-label">
+              Min library size <span class="default-hint">(default: 10)</span>
+              <button type="button" class="info-icon" aria-label="Minimum total counts a cell must have to survive QC; cells below this are dropped.">?</button>
+            </span>
             <input type="number" id="min-lib-size" value="10" min="0">
           </label>
-          <label class="field" title="Minimum fraction of cells a gene must be expressed in to survive QC.">
-            Min gene percent <span class="default-hint">(default: 0.001)</span>
+          <label class="field">
+            <span class="field-label">
+              Min gene percent <span class="default-hint">(default: 0.001)</span>
+              <button type="button" class="info-icon" aria-label="Minimum fraction of cells a gene must be expressed in to survive QC.">?</button>
+            </span>
             <input type="number" id="min-percent" value="0.001" min="0" max="1" step="0.001">
           </label>
-          <label class="field" title="Parallel backend used to build PC networks. Serial is deterministic; the joblib backends use multiple workers.">
-            Backend
+          <label class="field">
+            <span class="field-label">
+              Backend
+              <button type="button" class="info-icon" aria-label="Parallel backend used to build PC networks. Serial is deterministic; the joblib backends use multiple workers.">?</button>
+            </span>
             <select id="backend">
               <option value="serial" selected>serial (default)</option>
               <option value="joblib-loky">joblib-loky</option>
               <option value="joblib-threading">joblib-threading</option>
             </select>
           </label>
-          <label class="field" title="Worker count for the chosen backend. -1 uses all available cores; ignored for the serial backend.">
-            # jobs <span class="default-hint">(default: 1)</span>
+          <label class="field">
+            <span class="field-label">
+              # jobs <span class="default-hint">(default: 1)</span>
+              <button type="button" class="info-icon" aria-label="Worker count for the chosen backend. -1 uses all available cores; ignored for the serial backend.">?</button>
+            </span>
             <input type="number" id="n-jobs" value="1" min="-1">
           </label>
-          <label class="field" title="Random seed propagated to network construction, for reproducible results.">
-            Random state <span class="default-hint">(default: 42)</span>
+          <label class="field">
+            <span class="field-label">
+              Random state <span class="default-hint">(default: 42)</span>
+              <button type="button" class="info-icon" aria-label="Random seed propagated to network construction, for reproducible results.">?</button>
+            </span>
             <input type="number" id="random-state" value="42">
           </label>
         </div>
