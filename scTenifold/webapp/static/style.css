@@ -185,6 +185,26 @@ button:disabled {
   background: var(--panel);
 }
 
+.field select[multiple] {
+  padding: 0.2rem;
+}
+
+.field[title] {
+  cursor: help;
+}
+
+.default-hint {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0.3rem 0 0;
+}
+
 .field-group {
   margin-bottom: 1rem;
 }

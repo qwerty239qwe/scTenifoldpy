@@ -3,7 +3,8 @@
 const state = {
   workflow: "net",
   datasets: { x: null, y: null },
-  koGenes: [],
+  allGenes: [],
+  koGenes: new Set(),
 };
 
 const $ = (id) => document.getElementById(id);
@@ -20,7 +21,7 @@ function setWorkflow(workflow) {
   $("strict-lambda-field").hidden = isNet;
 
   if (isNet) {
-    state.koGenes = [];
+    state.koGenes.clear();
     renderKoGeneChips();
   }
   updateRunReadiness();
@@ -56,15 +57,41 @@ function renderDatasetInfo(slot, info, errorMessage) {
 }
 
 function populateGeneList(geneNames) {
-  const datalist = $("gene-list");
-  datalist.innerHTML = "";
+  state.allGenes = geneNames;
+  renderKoGeneOptions();
+}
+
+function renderKoGeneOptions() {
+  const select = $("ko-gene-select");
+  const filter = $("ko-gene-filter").value.trim().toLowerCase();
+  const genes = filter
+    ? state.allGenes.filter((g) => g.toLowerCase().includes(filter))
+    : state.allGenes;
+
+  select.innerHTML = "";
   const fragment = document.createDocumentFragment();
-  for (const gene of geneNames) {
+  for (const gene of genes) {
     const option = document.createElement("option");
     option.value = gene;
+    option.textContent = gene;
+    option.selected = state.koGenes.has(gene);
     fragment.appendChild(option);
   }
-  datalist.appendChild(fragment);
+  select.appendChild(fragment);
+}
+
+function onKoGeneSelectChange() {
+  // Only options currently rendered (i.e. matching the active filter) can
+  // toggle membership here; genes hidden by the filter keep their prior
+  // selection state untouched (see renderKoGeneOptions).
+  for (const option of $("ko-gene-select").options) {
+    if (option.selected) {
+      state.koGenes.add(option.value);
+    } else {
+      state.koGenes.delete(option.value);
+    }
+  }
+  renderKoGeneChips();
 }
 
 async function uploadDataset(slot, file) {
@@ -115,22 +142,15 @@ function renderKoGeneChips() {
     remove.type = "button";
     remove.textContent = "×";
     remove.addEventListener("click", () => {
-      state.koGenes = state.koGenes.filter((g) => g !== gene);
+      state.koGenes.delete(gene);
+      for (const option of $("ko-gene-select").options) {
+        if (option.value === gene) option.selected = false;
+      }
       renderKoGeneChips();
     });
     chip.appendChild(remove);
     wrap.appendChild(chip);
   }
-}
-
-function addKoGeneFromInput() {
-  const input = $("ko-gene-input");
-  const gene = input.value.trim();
-  if (gene && !state.koGenes.includes(gene)) {
-    state.koGenes.push(gene);
-    renderKoGeneChips();
-  }
-  input.value = "";
 }
 
 function buildJobPayload() {
@@ -148,7 +168,7 @@ function buildJobPayload() {
     payload.x_label = $("x-label").value || "X";
     payload.y_label = $("y-label").value || "Y";
   } else {
-    payload.ko_genes = state.koGenes;
+    payload.ko_genes = Array.from(state.koGenes);
     payload.ko_method = $("ko-method").value;
     payload.strict_lambda = Number($("strict-lambda").value);
   }
@@ -218,6 +238,13 @@ async function pollJob(jobId) {
 
 async function runJob(event) {
   event.preventDefault();
+  if (state.workflow === "knk" && state.koGenes.size === 0) {
+    $("results-section").classList.remove("hidden");
+    $("results-error").textContent = "Select at least one gene to knock out.";
+    $("results-error").classList.remove("hidden");
+    return;
+  }
+
   $("run-button").disabled = true;
   $("results-section").classList.remove("hidden");
   $("results-error").classList.add("hidden");
@@ -257,12 +284,8 @@ function init() {
   $("file-input-y").addEventListener("change", (e) => {
     if (e.target.files[0]) uploadDataset("y", e.target.files[0]);
   });
-  $("ko-gene-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addKoGeneFromInput();
-    }
-  });
+  $("ko-gene-filter").addEventListener("input", renderKoGeneOptions);
+  $("ko-gene-select").addEventListener("change", onKoGeneSelectChange);
   $("run-form").addEventListener("submit", runJob);
 
   setWorkflow("net");

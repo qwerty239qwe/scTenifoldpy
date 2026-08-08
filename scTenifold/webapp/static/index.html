@@ -60,56 +60,57 @@
       <h2><span class="step">3</span> Configure run</h2>
       <form id="run-form">
         <div class="field-group" id="ko-genes-group" hidden>
-          <label class="field">
-            Gene(s) to knock out
-            <input list="gene-list" id="ko-gene-input" placeholder="type to search, press Enter to add" autocomplete="off">
-            <datalist id="gene-list"></datalist>
+          <label class="field" title="Genes to knock out. Type to filter, then click (or Cmd/Ctrl-click for more than one) in the list below to select.">
+            Gene(s) to knock out <span class="default-hint">(select one or more)</span>
+            <input type="text" id="ko-gene-filter" placeholder="filter genes…" autocomplete="off">
+            <select id="ko-gene-select" multiple size="8"></select>
           </label>
+          <p class="hint">Hold Cmd (Mac) / Ctrl (Windows/Linux) and click to select multiple genes.</p>
           <div id="ko-gene-chips" class="chips"></div>
         </div>
 
         <div class="grid">
-          <label class="field" id="x-label-field">
-            X label
+          <label class="field" id="x-label-field" title="Label used for the first/reference condition in the results table.">
+            X label <span class="default-hint">(default: X)</span>
             <input type="text" id="x-label" value="X">
           </label>
-          <label class="field" id="y-label-field">
-            Y label
+          <label class="field" id="y-label-field" title="Label used for the second condition being compared against X.">
+            Y label <span class="default-hint">(default: Y)</span>
             <input type="text" id="y-label" value="Y">
           </label>
-          <label class="field" id="ko-method-field" hidden>
+          <label class="field" id="ko-method-field" hidden title="How the knockout tensor is built: zeroing out rows is faster; rebuilding networks is more thorough but slower.">
             KO method
             <select id="ko-method">
-              <option value="default" selected>default (zero out rows)</option>
-              <option value="propagation">propagation (rebuild networks)</option>
+              <option value="default" selected>zero out rows (default)</option>
+              <option value="propagation">rebuild networks</option>
             </select>
           </label>
-          <label class="field" id="strict-lambda-field" hidden>
-            Strict lambda
+          <label class="field" id="strict-lambda-field" hidden title="Strength of directional pruning applied to the wild-type network before knockout. 0 disables pruning.">
+            Strict lambda <span class="default-hint">(default: 0)</span>
             <input type="number" id="strict-lambda" value="0" min="0" step="0.1">
           </label>
-          <label class="field">
-            Min library size
+          <label class="field" title="Minimum total counts a cell must have to survive QC; cells below this are dropped.">
+            Min library size <span class="default-hint">(default: 10)</span>
             <input type="number" id="min-lib-size" value="10" min="0">
           </label>
-          <label class="field">
-            Min gene percent
+          <label class="field" title="Minimum fraction of cells a gene must be expressed in to survive QC.">
+            Min gene percent <span class="default-hint">(default: 0.001)</span>
             <input type="number" id="min-percent" value="0.001" min="0" max="1" step="0.001">
           </label>
-          <label class="field">
+          <label class="field" title="Parallel backend used to build PC networks. Serial is deterministic; the joblib backends use multiple workers.">
             Backend
             <select id="backend">
-              <option value="serial" selected>serial</option>
+              <option value="serial" selected>serial (default)</option>
               <option value="joblib-loky">joblib-loky</option>
               <option value="joblib-threading">joblib-threading</option>
             </select>
           </label>
-          <label class="field">
-            # jobs
+          <label class="field" title="Worker count for the chosen backend. -1 uses all available cores; ignored for the serial backend.">
+            # jobs <span class="default-hint">(default: 1)</span>
             <input type="number" id="n-jobs" value="1" min="-1">
           </label>
-          <label class="field">
-            Random state
+          <label class="field" title="Random seed propagated to network construction, for reproducible results.">
+            Random state <span class="default-hint">(default: 42)</span>
             <input type="number" id="random-state" value="42">
           </label>
         </div>
