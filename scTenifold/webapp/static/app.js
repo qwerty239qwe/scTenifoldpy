@@ -338,12 +338,23 @@ async function pollJob(jobId, isCurrent) {
   return null;
 }
 
+function showValidationError(message) {
+  $("results-section").classList.remove("hidden");
+  $("results-error").textContent = message;
+  $("results-error").classList.remove("hidden");
+}
+
 async function runJob(event) {
   event.preventDefault();
   if (state.workflow === "knk" && state.koGenes.size === 0) {
-    $("results-section").classList.remove("hidden");
-    $("results-error").textContent = "Select at least one gene to knock out.";
-    $("results-error").classList.remove("hidden");
+    showValidationError("Select at least one gene to knock out.");
+    return;
+  }
+  // The number input can't express "-1 or >= 1" via min alone, and an empty
+  // field reads back as 0 — both of which the API rejects with a 422.
+  const nJobs = Number($("n-jobs").value);
+  if (!Number.isInteger(nJobs) || nJobs === 0 || nJobs < -1) {
+    showValidationError("# jobs must be -1 (all cores) or a positive whole number.");
     return;
   }
 
