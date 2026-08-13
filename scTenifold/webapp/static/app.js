@@ -225,16 +225,25 @@ function renderKoGeneChips() {
   }
 }
 
+// 'grn' builds a single network with nothing to resample across, so the
+// parallel options are hidden for it (see setWorkflow) and left out of the
+// payload rather than sent and ignored.
+function usesParallelOptions() {
+  return state.workflow !== "grn";
+}
+
 function buildJobPayload() {
   const payload = {
     workflow: state.workflow,
     dataset_id: state.datasets.x.dataset_id,
     min_lib_size: Number($("min-lib-size").value),
     min_percent: Number($("min-percent").value),
-    backend: $("backend").value,
-    n_jobs: Number($("n-jobs").value),
     random_state: Number($("random-state").value),
   };
+  if (usesParallelOptions()) {
+    payload.backend = $("backend").value;
+    payload.n_jobs = Number($("n-jobs").value);
+  }
   if (state.workflow === "net") {
     payload.dataset_id_y = state.datasets.y.dataset_id;
     payload.x_label = $("x-label").value || "X";
@@ -351,9 +360,11 @@ async function runJob(event) {
     return;
   }
   // The number input can't express "-1 or >= 1" via min alone, and an empty
-  // field reads back as 0 — both of which the API rejects with a 422.
+  // field reads back as 0 — both of which the API rejects with a 422. Only
+  // checked for workflows that actually send it, so a stale value can't block
+  // a run on a field the current workflow hides.
   const nJobs = Number($("n-jobs").value);
-  if (!Number.isInteger(nJobs) || nJobs === 0 || nJobs < -1) {
+  if (usesParallelOptions() && (!Number.isInteger(nJobs) || nJobs === 0 || nJobs < -1)) {
     showValidationError("# jobs must be -1 (all cores) or a positive whole number.");
     return;
   }
