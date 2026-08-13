@@ -5,6 +5,9 @@ const state = {
   datasets: { x: null, y: null },
   allGenes: [],
   koGenes: new Set(),
+  // Bumped whenever the form no longer describes an in-flight job (i.e. on a
+  // workflow switch), so that job stops writing to the results UI.
+  runGeneration: 0,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -45,6 +48,7 @@ function setWorkflow(workflow) {
     state.koGenes.clear();
     renderKoGeneChips();
   }
+  state.runGeneration += 1;
   resetResults();
   updateRunReadiness();
 }
@@ -270,16 +274,19 @@ const EDGE_COLUMNS = [
   ["weight", "Weight"],
 ];
 
-function renderResultsTable(rows) {
+// `workflow` is the one the job was submitted with, not the one the form
+// currently shows — the two can differ if the user switches mid-run.
+function renderResultsTable(rows, workflow) {
   const wrap = $("results-table-wrap");
   wrap.innerHTML = "";
-  const noun = state.workflow === "grn" ? "edge" : "gene";
+  const isGrn = workflow === "grn";
+  const noun = isGrn ? "edge" : "gene";
   if (rows.length === 0) {
     wrap.textContent = `No ${noun}s in result.`;
     return;
   }
-  const columns = state.workflow === "grn" ? EDGE_COLUMNS : GENE_COLUMNS;
-  const sortedBy = state.workflow === "grn" ? "|edge weight|" : "p-value";
+  const columns = isGrn ? EDGE_COLUMNS : GENE_COLUMNS;
+  const sortedBy = isGrn ? "|edge weight|" : "p-value";
 
   const shown = rows.slice(0, RESULTS_ROW_LIMIT);
   const caption = document.createElement("p");
@@ -317,14 +324,18 @@ function renderResultsTable(rows) {
   wrap.appendChild(table);
 }
 
-async function pollJob(jobId) {
-  while (true) {
+// Returns null once `isCurrent()` goes false — the job was abandoned and its
+// progress must no longer be shown.
+async function pollJob(jobId, isCurrent) {
+  while (isCurrent()) {
     const status = await apiFetch(`/api/jobs/${jobId}`);
+    if (!isCurrent()) break;
     setProgress(status.status, status.stage);
     if (status.status === "done") return status;
     if (status.status === "error") throw new Error(status.error || "job failed");
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
+  return null;
 }
 
 async function runJob(event) {
@@ -343,6 +354,12 @@ async function runJob(event) {
   $("download-csv").classList.add("hidden");
   setProgress("queued", "");
 
+  // Switching workflows mid-run bumps the generation; from then on this job's
+  // results and errors belong to a form the user has moved on from, so they
+  // are dropped rather than rendered against the new workflow's layout.
+  const generation = state.runGeneration;
+  const isCurrent = () => state.runGeneration === generation;
+
   try {
     const payload = buildJobPayload();
     const { job_id: jobId } = await apiFetch("/api/jobs", {
@@ -350,13 +367,16 @@ async function runJob(event) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    await pollJob(jobId);
-    const result = await apiFetch(`/api/jobs/${jobId}/result`);
-    renderResultsTable(result.rows);
-    const downloadLink = $("download-csv");
-    downloadLink.href = `/api/jobs/${jobId}/result.csv`;
-    downloadLink.classList.remove("hidden");
+    if (await pollJob(jobId, isCurrent)) {
+      const result = await apiFetch(`/api/jobs/${jobId}/result`);
+      if (!isCurrent()) return;
+      renderResultsTable(result.rows, payload.workflow);
+      const downloadLink = $("download-csv");
+      downloadLink.href = `/api/jobs/${jobId}/result.csv`;
+      downloadLink.classList.remove("hidden");
+    }
   } catch (err) {
+    if (!isCurrent()) return;
     $("results-error").textContent = err.message;
     $("results-error").classList.remove("hidden");
   } finally {
