@@ -164,14 +164,18 @@ async function useExampleDataset(event) {
   const source = event.currentTarget.dataset.source;
   $("example-hint").textContent = EXAMPLE_HINTS[source] || "";
 
-  // An example replaces any manual upload; collapse the upload boxes and
-  // clear their leftover info/error text so nothing stale lingers.
+  // An example replaces any manual upload; collapse the upload boxes and clear
+  // both slots (state and their leftover info/error text) so nothing stale
+  // lingers — a workflow without a Dataset Y must not keep an old Y active,
+  // and a failed load must not leave the previous datasets runnable.
   setUploadGridVisible(false);
   for (const slot of ["x", "y"]) {
+    state.datasets[slot] = null;
     $(`dataset-${slot}-error`).classList.add("hidden");
     $(`dataset-${slot}-info`).classList.add("hidden");
     $(`file-input-${slot}`).value = "";
   }
+  updateRunReadiness();
 
   try {
     const [xInfo, yInfo] = await apiFetch(source);
