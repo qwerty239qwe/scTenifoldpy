@@ -88,7 +88,7 @@ jobs:
     - name: Install dependencies with the ui extra
       run: uv sync --group test --extra ui
     - name: Test local web UI
-      run: uv run pytest tests/test_webapp_jobs.py tests/test_webapp_api.py tests/test_webapp_cli.py tests/test_webapp_pbmc3k.py tests/test_webapp_schemas.py -v --cov=scTenifold --cov-report=xml
+      run: uv run pytest tests/test_webapp_jobs.py tests/test_webapp_api.py tests/test_webapp_cli.py tests/test_webapp_pbmc3k.py tests/test_webapp_schemas.py tests/test_webapp_upload_limits.py -v --cov=scTenifold --cov-report=xml
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:

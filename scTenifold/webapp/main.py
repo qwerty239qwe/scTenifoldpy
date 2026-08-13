@@ -20,8 +20,8 @@ import tempfile
 from pathlib import Path
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from scTenifold.core._networks import anndata_to_dataframe
@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024  # 500 MB (raised from 200 MB to fit .h5ad uploads)
+UPLOAD_CHUNK_BYTES = 1024 * 1024
+_TOO_LARGE = f"file too large (limit {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"
 
 
 def _dataset_info(dataset_id: str, name: str, df: pd.DataFrame) -> DatasetInfo:
@@ -68,16 +70,16 @@ def _validate_expression_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _read_expression_csv(raw: bytes) -> pd.DataFrame:
+def _read_expression_csv(path: str) -> pd.DataFrame:
     """Parse an uploaded genes-by-cells CSV (gene names in the first column)."""
     try:
-        df = pd.read_csv(io.BytesIO(raw), index_col=0)
+        df = pd.read_csv(path, index_col=0)
     except Exception as exc:  # noqa: BLE001
         raise ValueError(f"could not parse CSV: {exc}") from exc
     return _validate_expression_df(df)
 
 
-def _read_h5ad(raw: bytes) -> pd.DataFrame:
+def _read_h5ad(path: str) -> pd.DataFrame:
     """Parse an uploaded AnnData .h5ad file (genes in .var, cells in .obs)."""
     try:
         import anndata
@@ -86,25 +88,51 @@ def _read_h5ad(raw: bytes) -> pd.DataFrame:
             "reading .h5ad files needs the 'anndata' package: pip install \"scTenifoldpy[ui]\""
         ) from exc
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".h5ad", delete=False)
     try:
-        tmp.write(raw)
-        tmp.close()
-        try:
-            adata = anndata.read_h5ad(tmp.name)
-        except Exception as exc:  # noqa: BLE001
-            raise ValueError(f"could not parse .h5ad file: {exc}") from exc
-    finally:
-        os.unlink(tmp.name)
+        adata = anndata.read_h5ad(path)
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"could not parse .h5ad file: {exc}") from exc
 
     df = anndata_to_dataframe(adata)
     df.index = df.index.astype(str)
     return _validate_expression_df(df)
 
 
+async def _spool_upload(file: UploadFile, suffix: str) -> str:
+    """Copy an upload to a temp file a chunk at a time, bailing out as soon as
+    the running total passes the cap — so an oversized file is never held in
+    memory whole (``await file.read()`` with no argument would do exactly that).
+    Returns the temp file's path; the caller is responsible for removing it."""
+    tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+    total = 0
+    try:
+        while chunk := await file.read(UPLOAD_CHUNK_BYTES):
+            total += len(chunk)
+            if total > MAX_UPLOAD_BYTES:
+                raise HTTPException(413, _TOO_LARGE)
+            tmp.write(chunk)
+        tmp.close()
+    except BaseException:
+        tmp.close()
+        os.unlink(tmp.name)
+        raise
+    return tmp.name
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="scTenifoldpy", description="Local UI for the scTenifold suite")
     manager = JobManager()
+
+    @app.middleware("http")
+    async def reject_oversized_bodies(request: Request, call_next):
+        """Reject on the declared Content-Length, before the multipart parser
+        pulls the body off the socket. The endpoint can't do this: FastAPI has
+        already read (and spooled) the whole upload by the time it runs, so a
+        check there stops the memory blow-up but not the transfer."""
+        declared = request.headers.get("content-length")
+        if declared and declared.isdigit() and int(declared) > MAX_UPLOAD_BYTES:
+            return JSONResponse({"detail": _TOO_LARGE}, status_code=413)
+        return await call_next(request)
 
     # -- datasets -----------------------------------------------------
     @app.get("/api/datasets/example", response_model=list[DatasetInfo])
@@ -143,13 +171,13 @@ def create_app() -> FastAPI:
         suffix = Path(file.filename).suffix.lower()
         if suffix not in (".csv", ".h5ad"):
             raise HTTPException(400, "only .csv or .h5ad files are supported")
-        raw = await file.read()
-        if len(raw) > MAX_UPLOAD_BYTES:
-            raise HTTPException(413, "file too large (limit 500 MB)")
+        path = await _spool_upload(file, suffix)
         try:
-            df = _read_h5ad(raw) if suffix == ".h5ad" else _read_expression_csv(raw)
+            df = _read_h5ad(path) if suffix == ".h5ad" else _read_expression_csv(path)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
+        finally:
+            os.unlink(path)
 
         dataset_id = manager.add_dataset(df)
         return _dataset_info(dataset_id, file.filename, df)
