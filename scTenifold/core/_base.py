@@ -531,6 +531,32 @@ class scTenifoldKnk(scBase):
                      strict_lambda=self.strict_lambda, ko_genes=self.ko_genes)
 
     def _get_ko_tensor(self, ko_genes, **kwargs):
+        if self.ko_method not in ("default", "propagation"):
+            raise ValueError("No such method")
+
+        # Both branches below index into the post-QC gene set
+        # (self.tensor_dict["WT"], built from self.shared_gene_names ==
+        # self.QC_dict["WT"].index) rather than the raw input. A gene can be
+        # a perfectly valid column in the original data and still be missing
+        # here if QC (min_lib_size/min_percent/min_exp_avg/min_exp_sum)
+        # dropped it — e.g. a knockout target expressed too rarely to pass
+        # min_percent. Left unchecked, that reaches pandas as a bare
+        # "None of [Index([...])] are in the [index]" KeyError with no
+        # indication of why; check up front and say so plainly, split by
+        # whether the gene was ever in the input at all.
+        available = set(self.tensor_dict["WT"].index)
+        missing = [g for g in ko_genes if g not in available]
+        if missing:
+            raw_genes = set(self.data_dict["WT"].index.astype(str))
+            removed_by_qc = [g for g in missing if g in raw_genes]
+            unknown = [g for g in missing if g not in raw_genes]
+            parts = []
+            if removed_by_qc:
+                parts.append(f"removed by QC filtering before the knockout step: {removed_by_qc}")
+            if unknown:
+                parts.append(f"not found in the input data: {unknown}")
+            raise ValueError("knockout gene(s) " + "; ".join(parts))
+
         if self.ko_method == "default":
             self.tensor_dict["KO"] = self.tensor_dict["WT"].copy()
             self.tensor_dict["KO"].loc[ko_genes, :] = 0
@@ -545,8 +571,6 @@ class scTenifoldKnk(scBase):
             self._tensor_decomp("KO", self.shared_gene_names, **self.td_kws)
             self.tensor_dict["KO"] = strict_direction(self.tensor_dict["KO"], self.strict_lambda).T.copy()
             self.tensor_dict["KO"] = _fill_dataframe_diagonal(self.tensor_dict["KO"], 0)
-        else:
-            raise ValueError("No such method")
 
     def run_step(self,
                  step_name: Literal["qc", "nc", "td", "ko", "ma", "dr"],
