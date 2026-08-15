@@ -5,9 +5,15 @@ const state = {
   datasets: { x: null, y: null },
   allGenes: [],
   koGenes: new Set(),
-  // Bumped whenever the form no longer describes an in-flight job (i.e. on a
-  // workflow switch), so that job stops writing to the results UI.
-  runGeneration: 0,
+  // One slot per workflow tab, so a job keeps running (and gets rendered when
+  // its tab is revisited) after the user switches to another tab to prepare
+  // a different run. null = no job submitted yet for that tab this session.
+  // Each entry: { token, jobId, status, stage, error, rows }.
+  jobs: { net: null, knk: null, grn: null },
+  // Bumped per workflow on every submit; a poll loop checks its job is still
+  // `state.jobs[workflow]` (by identity) before writing to it, so a re-run of
+  // the same tab can't have an older poll clobber the newer job's state.
+  jobTokens: { net: 0, knk: 0, grn: 0 },
 };
 
 const $ = (id) => document.getElementById(id);
@@ -48,8 +54,7 @@ function setWorkflow(workflow) {
     state.koGenes.clear();
     renderKoGeneChips();
   }
-  state.runGeneration += 1;
-  resetResults();
+  renderJobUI(state.jobs[workflow]);
   updateRunReadiness();
 }
 
@@ -63,6 +68,42 @@ function resetResults() {
   $("progress-fill").style.width = "10%";
   $("progress-fill").classList.remove("error");
   $("status-bar").textContent = "";
+}
+
+// Paints the results panel for the workflow tab currently on screen, from
+// that tab's tracked job (or clears it if the tab has never submitted one).
+// Callers must only invoke this while `job` belongs to the visible tab —
+// trackJob() guards that before calling in from a background poll.
+function renderJobUI(job) {
+  if (!job) {
+    resetResults();
+    $("run-button").disabled = false;
+    return;
+  }
+  $("results-section").classList.remove("hidden");
+  $("run-button").disabled = job.status === "queued" || job.status === "running";
+
+  if (job.status === "error") {
+    $("results-error").textContent = job.error;
+    $("results-error").classList.remove("hidden");
+    $("results-table-wrap").innerHTML = "";
+    $("download-csv").classList.add("hidden");
+    $("progress-wrap").classList.add("hidden");
+    return;
+  }
+
+  $("results-error").classList.add("hidden");
+  if (job.status === "done") {
+    $("progress-wrap").classList.add("hidden");
+    renderResultsTable(job.rows || [], job.workflow);
+    const downloadLink = $("download-csv");
+    downloadLink.href = `/api/jobs/${job.jobId}/result.csv`;
+    downloadLink.classList.remove("hidden");
+  } else {
+    $("results-table-wrap").innerHTML = "";
+    $("download-csv").classList.add("hidden");
+    setProgress(job.status, job.stage);
+  }
 }
 
 async function apiFetch(path, options) {
@@ -333,24 +374,67 @@ function renderResultsTable(rows, workflow) {
   wrap.appendChild(table);
 }
 
-// Returns null once `isCurrent()` goes false — the job was abandoned and its
-// progress must no longer be shown.
-async function pollJob(jobId, isCurrent) {
-  while (isCurrent()) {
-    const status = await apiFetch(`/api/jobs/${jobId}`);
-    if (!isCurrent()) break;
-    setProgress(status.status, status.stage);
-    if (status.status === "done") return status;
-    if (status.status === "error") throw new Error(status.error || "job failed");
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-  return null;
-}
-
 function showValidationError(message) {
   $("results-section").classList.remove("hidden");
   $("results-error").textContent = message;
   $("results-error").classList.remove("hidden");
+}
+
+// Polls a submitted job to completion and fetches its result, writing every
+// update into `job` regardless of which tab is on screen — this is what lets
+// a run kept going after the user switches tabs. `job` is identified by
+// object identity: a re-run of the same workflow replaces
+// `state.jobs[workflow]` with a new object, and `current()` goes false for
+// this call the moment that happens, so a superseded poll loop stops touching
+// state and stops repainting the DOM out from under the newer run.
+async function trackJob(workflow, job) {
+  const current = () => state.jobs[workflow] === job;
+  const paint = () => { if (state.workflow === workflow) renderJobUI(job); };
+
+  const fail = (message) => {
+    job.status = "error";
+    job.error = message;
+    paint();
+  };
+
+  while (current()) {
+    let status;
+    try {
+      status = await apiFetch(`/api/jobs/${job.jobId}`);
+    } catch (err) {
+      if (current()) fail(err.message);
+      return;
+    }
+    if (!current()) return;
+
+    if (status.status === "error") {
+      job.status = "error";
+      job.stage = status.stage;
+      job.error = status.error || "job failed";
+      paint();
+      return;
+    }
+    if (status.status === "done") {
+      // Fetch the result before flipping job.status to "done" — renderJobUI's
+      // done branch renders job.rows unconditionally, so painting "done" with
+      // rows still null would crash on the switch back to this tab.
+      try {
+        const result = await apiFetch(`/api/jobs/${job.jobId}/result`);
+        if (!current()) return;
+        job.status = "done";
+        job.stage = status.stage;
+        job.rows = result.rows;
+        paint();
+      } catch (err) {
+        if (current()) fail(err.message);
+      }
+      return;
+    }
+    job.status = status.status;
+    job.stage = status.stage;
+    paint();
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 }
 
 async function runJob(event) {
@@ -369,18 +453,13 @@ async function runJob(event) {
     return;
   }
 
-  $("run-button").disabled = true;
-  $("results-section").classList.remove("hidden");
-  $("results-error").classList.add("hidden");
-  $("results-table-wrap").innerHTML = "";
-  $("download-csv").classList.add("hidden");
-  setProgress("queued", "");
-
-  // Switching workflows mid-run bumps the generation; from then on this job's
-  // results and errors belong to a form the user has moved on from, so they
-  // are dropped rather than rendered against the new workflow's layout.
-  const generation = state.runGeneration;
-  const isCurrent = () => state.runGeneration === generation;
+  // Captured now, while the form still describes this workflow: buildJobPayload()
+  // reads state.workflow/state.datasets synchronously below, before the first
+  // await, so a tab switch afterwards can't change what gets submitted.
+  const workflow = state.workflow;
+  const job = { token: ++state.jobTokens[workflow], workflow, jobId: null, status: "queued", stage: "", error: null, rows: null };
+  state.jobs[workflow] = job;
+  renderJobUI(job); // workflow === state.workflow here, so this is the visible tab
 
   try {
     const payload = buildJobPayload();
@@ -389,20 +468,15 @@ async function runJob(event) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (await pollJob(jobId, isCurrent)) {
-      const result = await apiFetch(`/api/jobs/${jobId}/result`);
-      if (!isCurrent()) return;
-      renderResultsTable(result.rows, payload.workflow);
-      const downloadLink = $("download-csv");
-      downloadLink.href = `/api/jobs/${jobId}/result.csv`;
-      downloadLink.classList.remove("hidden");
-    }
+    if (state.jobs[workflow] !== job) return; // superseded while the POST was in flight
+    job.jobId = jobId;
+    if (state.workflow === workflow) renderJobUI(job);
+    await trackJob(workflow, job);
   } catch (err) {
-    if (!isCurrent()) return;
-    $("results-error").textContent = err.message;
-    $("results-error").classList.remove("hidden");
-  } finally {
-    $("run-button").disabled = false;
+    if (state.jobs[workflow] !== job) return;
+    job.status = "error";
+    job.error = err.message;
+    if (state.workflow === workflow) renderJobUI(job);
   }
 }
 
