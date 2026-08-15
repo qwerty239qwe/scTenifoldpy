@@ -12,7 +12,7 @@ from typing import Optional
 def main(argv: Optional[list] = None) -> None:
     parser = argparse.ArgumentParser(prog="sctenifold-ui", description="Run the local scTenifoldpy web UI.")
     parser.add_argument("--host", default="127.0.0.1", help="bind host (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8000, help="bind port (default: 8000)")
+    parser.add_argument("--port", type=int, default=8001, help="bind port (default: 8001)")
     parser.add_argument("--no-browser", action="store_true", help="don't auto-open a browser tab")
     args = parser.parse_args(argv)
 

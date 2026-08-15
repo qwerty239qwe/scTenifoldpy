@@ -18,9 +18,13 @@ pip install "scTenifoldpy[ui]"
 sctenifold-ui
 ```
 
+`sctenifold-ui` defaults to port 8001 (not the more commonly used 8000, to
+lower the odds of colliding with another local server) and opens
+`http://127.0.0.1:8001` in your browser. Use `--port` to pick a different one.
+
 ![scTenifoldpy local web UI: workflow picker (Net / Knk / GRN-only) and dataset step](docs/images/ui-screenshot.png)
 
-This opens a local page (`http://127.0.0.1:8000`) where you can try a
+This opens a local page (`http://127.0.0.1:8001`) where you can try a
 bundled synthetic dataset or the real 10x PBMC3k dataset (the one behind
 the Seurat/Scanpy tutorials), or upload your own data as a genes-by-cells
 CSV or an AnnData `.h5ad` file. Pick a workflow, run it, and download the

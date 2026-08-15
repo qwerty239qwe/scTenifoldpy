@@ -13,8 +13,8 @@ pip install "scTenifoldpy[ui]"
 sctenifold-ui
 ```
 
-This starts a local server (default `http://127.0.0.1:8000`) and opens it
-in your browser. Everything runs locally — no data leaves your machine.
+This starts a local server (default `http://127.0.0.1:8001`) and opens it in your browser. Everything runs
+locally — no data leaves your machine.
 
 You can also run it as a module, or customize the host/port:
 
