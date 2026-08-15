@@ -33,6 +33,12 @@ jobs:
       continue-on-error: true
       run: uv run ty check scTenifold
     - name: Test with pytest
+      # tests/test_data.py hits the GitHub REST API (60/hour unauthenticated,
+      # easily exhausted across a 6-version matrix); GITHUB_TOKEN raises that
+      # to 5000/hour. Always available for free on Actions, read-only on PRs
+      # from forks, which is all this needs.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: uv run pytest --cov=. --cov-report=xml
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
