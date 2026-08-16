@@ -134,7 +134,6 @@ def create_app() -> FastAPI:
             return JSONResponse({"detail": _TOO_LARGE}, status_code=413)
         return await call_next(request)
 
-    # -- datasets -----------------------------------------------------
     @app.get("/api/datasets/example", response_model=list[DatasetInfo])
     def load_example_datasets():
         """Generate a small reproducible synthetic X/Y pair (see scTenifold.data.get_test_df)."""
@@ -182,7 +181,6 @@ def create_app() -> FastAPI:
         dataset_id = manager.add_dataset(df)
         return _dataset_info(dataset_id, file.filename, df)
 
-    # -- jobs -----------------------------------------------------------
     @app.post("/api/jobs", response_model=JobCreated)
     def create_job(params: JobCreate):
         try:
@@ -250,7 +248,6 @@ def create_app() -> FastAPI:
         headers = {"Content-Disposition": f'attachment; filename="sctenifold_{job_id}.csv"'}
         return StreamingResponse(buf, media_type="text/csv", headers=headers)
 
-    # -- static frontend --------------------------------------------
     if STATIC_DIR.is_dir():
         app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 

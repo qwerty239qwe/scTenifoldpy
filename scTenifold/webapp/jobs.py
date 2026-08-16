@@ -77,7 +77,6 @@ class JobManager:
         self._jobs: dict[str, Job] = {}
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="sctenifold-job")
 
-    # -- datasets ---------------------------------------------------
     def add_dataset(self, df: pd.DataFrame) -> str:
         dataset_id = uuid.uuid4().hex[:12]
         self._datasets[dataset_id] = df
@@ -89,7 +88,6 @@ class JobManager:
         except KeyError as exc:
             raise DatasetNotFoundError(dataset_id) from exc
 
-    # -- jobs ---------------------------------------------------------
     def submit(self, params: JobCreate) -> str:
         x_df = self.get_dataset(params.dataset_id)  # fail fast if unknown dataset
         y_df = self.get_dataset(params.dataset_id_y) if params.dataset_id_y else None
