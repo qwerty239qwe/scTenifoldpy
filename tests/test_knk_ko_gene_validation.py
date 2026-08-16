@@ -68,3 +68,15 @@ def test_ko_gene_that_survives_qc_still_runs_normally():
     result = virtual_knockout(df, ko_genes=[survivor], qc_kws={"min_lib_size": 1, "plot": False})
     assert isinstance(result, pd.DataFrame)
     assert not result.empty
+
+
+@pytest.mark.parametrize("ko_method", ["default", "propagation"])
+def test_ko_genes_as_bare_string_is_treated_as_a_single_gene(ko_method):
+    # ko_genes is typed Optional[Union[str, Iterable[str]]], so a bare gene
+    # name must not be iterated character by character.
+    df = get_test_df(n_cells=100, n_genes=100, random_state=42)
+    survivor = next(g for g in df.index if not g.upper().startswith("MT-"))
+    result = virtual_knockout(df, ko_genes=survivor, ko_method=ko_method,
+                               qc_kws={"min_lib_size": 1, "plot": False})
+    assert isinstance(result, pd.DataFrame)
+    assert not result.empty

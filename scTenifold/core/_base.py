@@ -534,6 +534,12 @@ class scTenifoldKnk(scBase):
         if self.ko_method not in ("default", "propagation"):
             raise ValueError("No such method")
 
+        # A bare gene name is a valid ko_genes value (see the type hint),
+        # but every check/index below assumes an iterable of names; left
+        # as-is, a string would be iterated character by character.
+        if isinstance(ko_genes, str):
+            ko_genes = [ko_genes]
+
         # Both branches below index into the post-QC gene set
         # (self.tensor_dict["WT"], built from self.shared_gene_names ==
         # self.QC_dict["WT"].index) rather than the raw input. A gene can be
