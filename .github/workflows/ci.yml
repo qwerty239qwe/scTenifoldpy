@@ -33,6 +33,12 @@ jobs:
       continue-on-error: true
       run: uv run ty check scTenifold
     - name: Test with pytest
+      # tests/test_data.py hits the GitHub REST API (60/hour unauthenticated,
+      # easily exhausted across a 6-version matrix); GITHUB_TOKEN raises that
+      # to 5000/hour. Always available for free on Actions, read-only on PRs
+      # from forks, which is all this needs.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: uv run pytest --cov=. --cov-report=xml
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
@@ -69,3 +75,28 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: xct
+
+  test-ui:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+    - name: Install dependencies with the ui extra
+      run: uv sync --group test --extra ui
+    - name: Test local web UI
+      run: uv run pytest tests/test_webapp_jobs.py tests/test_webapp_api.py tests/test_webapp_cli.py tests/test_webapp_pbmc3k.py tests/test_webapp_schemas.py tests/test_webapp_upload_limits.py -v --cov=scTenifold --cov-report=xml
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        flags: ui

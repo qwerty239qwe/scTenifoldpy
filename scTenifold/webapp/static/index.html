@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>scTenifoldpy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>scTenifoldpy</h1>
+    <p>scTenifoldNet &amp; scTenifoldKnk &mdash; local run, no data leaves this machine.</p>
+  </header>
+
+  <main>
+    <section id="workflow-section">
+      <h2><span class="step">1</span> Workflow</h2>
+      <div class="workflow-choice">
+        <label class="radio-card">
+          <input type="radio" name="workflow" value="net" checked>
+          <span class="title">Compare networks (scTenifoldNet)</span>
+          <span class="desc">Rank genes by differential regulation between two conditions.</span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="workflow" value="knk">
+          <span class="title">Virtual knockout (scTenifoldKnk)</span>
+          <span class="desc">Rank genes by predicted impact of knocking out one or more genes.</span>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="workflow" value="grn">
+          <span class="title">Build GRN only</span>
+          <span class="desc">Just infer the gene regulatory network from one sample — no comparison, no knockout.</span>
+        </label>
+      </div>
+    </section>
+
+    <section id="dataset-section">
+      <h2><span class="step">2</span> Dataset</h2>
+      <p class="hint" id="dataset-section-hint"></p>
+      <div class="row">
+        <button id="use-example" type="button" data-source="/api/datasets/example">Use synthetic example dataset</button>
+        <button id="use-pbmc3k" type="button" data-source="/api/datasets/pbmc3k">Use PBMC3k example (real 10x data)</button>
+        <button id="toggle-upload" type="button" class="link-button" aria-expanded="false">or upload your own</button>
+      </div>
+      <p class="hint" id="example-hint"></p>
+
+      <div class="dataset-grid" id="dataset-grid" hidden>
+        <div class="dataset-slot" id="dataset-x-slot">
+          <label class="file-input" for="file-input-x" id="dataset-x-label">
+            Dataset X <span id="dataset-x-role"></span><br>
+            <span class="default-hint">.csv (genes as rows) or .h5ad AnnData</span>
+            <input type="file" id="file-input-x" accept=".csv,.h5ad">
+          </label>
+          <p class="dataset-error error hidden" id="dataset-x-error"></p>
+          <p class="dataset-info info hidden" id="dataset-x-info"></p>
+        </div>
+        <div class="dataset-slot" id="dataset-y-slot">
+          <label class="file-input" for="file-input-y" id="dataset-y-label">
+            Dataset Y <span id="dataset-y-role">— the condition to compare against X</span><br>
+            <span class="default-hint">.csv or .h5ad, same gene naming as X</span>
+            <input type="file" id="file-input-y" accept=".csv,.h5ad">
+          </label>
+          <p class="dataset-error error hidden" id="dataset-y-error"></p>
+          <p class="dataset-info info hidden" id="dataset-y-info"></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="run-section" class="hidden">
+      <h2><span class="step">3</span> Configure run</h2>
+      <form id="run-form">
+        <div class="field-group" id="ko-genes-group" hidden>
+          <label class="field">
+            <span class="field-label">
+              Gene(s) to knock out <span class="default-hint">(select one or more)</span>
+              <button type="button" class="info-icon" aria-label="Type to filter, then click (or Cmd/Ctrl-click for more than one) in the list below to select genes to knock out.">?</button>
+            </span>
+            <input type="text" id="ko-gene-filter" placeholder="filter genes…" autocomplete="off">
+            <select id="ko-gene-select" multiple size="8"></select>
+          </label>
+          <p class="hint">Hold Cmd (Mac) / Ctrl (Windows/Linux) and click to select multiple genes.</p>
+          <div id="ko-gene-chips" class="chips"></div>
+        </div>
+
+        <div class="grid">
+          <label class="field" id="x-label-field">
+            <span class="field-label">
+              X label <span class="default-hint">(default: X)</span>
+              <button type="button" class="info-icon" aria-label="Label used for the first/reference condition in the results table.">?</button>
+            </span>
+            <input type="text" id="x-label" value="X">
+          </label>
+          <label class="field" id="y-label-field">
+            <span class="field-label">
+              Y label <span class="default-hint">(default: Y)</span>
+              <button type="button" class="info-icon" aria-label="Label used for the second condition being compared against X.">?</button>
+            </span>
+            <input type="text" id="y-label" value="Y">
+          </label>
+          <label class="field" id="ko-method-field" hidden>
+            <span class="field-label">
+              KO method
+              <button type="button" class="info-icon" aria-label="How the knockout tensor is built: zeroing out rows is faster; rebuilding networks is more thorough but slower.">?</button>
+            </span>
+            <select id="ko-method">
+              <option value="default" selected>zero out rows (default)</option>
+              <option value="propagation">rebuild networks</option>
+            </select>
+          </label>
+          <label class="field" id="strict-lambda-field" hidden>
+            <span class="field-label">
+              Strict lambda <span class="default-hint">(default: 0)</span>
+              <button type="button" class="info-icon" aria-label="Strength of directional pruning applied to the wild-type network before knockout. 0 disables pruning.">?</button>
+            </span>
+            <input type="number" id="strict-lambda" value="0" min="0" step="0.1">
+          </label>
+          <label class="field">
+            <span class="field-label">
+              Min library size <span class="default-hint">(default: 10)</span>
+              <button type="button" class="info-icon" aria-label="Minimum total counts a cell must have to survive QC; cells below this are dropped.">?</button>
+            </span>
+            <input type="number" id="min-lib-size" value="10" min="0">
+          </label>
+          <label class="field">
+            <span class="field-label">
+              Min gene percent <span class="default-hint">(default: 0.001)</span>
+              <button type="button" class="info-icon" aria-label="Minimum fraction of cells a gene must be expressed in to survive QC.">?</button>
+            </span>
+            <input type="number" id="min-percent" value="0.001" min="0" max="1" step="0.001">
+          </label>
+          <label class="field" id="backend-field">
+            <span class="field-label">
+              Backend
+              <button type="button" class="info-icon" aria-label="Parallel backend used to build PC networks. Serial is deterministic; the joblib backends use multiple workers.">?</button>
+            </span>
+            <select id="backend">
+              <option value="serial" selected>serial (default)</option>
+              <option value="joblib-loky">joblib-loky</option>
+              <option value="joblib-threading">joblib-threading</option>
+            </select>
+          </label>
+          <label class="field" id="n-jobs-field">
+            <span class="field-label">
+              # jobs <span class="default-hint">(default: 1)</span>
+              <button type="button" class="info-icon" aria-label="Worker count for the chosen backend. -1 uses all available cores; ignored for the serial backend.">?</button>
+            </span>
+            <input type="number" id="n-jobs" value="1" min="-1">
+          </label>
+          <label class="field">
+            <span class="field-label">
+              Random state <span class="default-hint">(default: 42)</span>
+              <button type="button" class="info-icon" aria-label="Random seed propagated to network construction, for reproducible results.">?</button>
+            </span>
+            <input type="number" id="random-state" value="42">
+          </label>
+        </div>
+
+        <button type="submit" id="run-button">Run</button>
+      </form>
+    </section>
+
+    <section id="results-section" class="hidden">
+      <h2><span class="step">4</span> Results</h2>
+      <div id="progress-wrap" class="progress-wrap hidden">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+      <p id="status-bar" class="status"></p>
+      <p id="results-error" class="error hidden"></p>
+      <div id="results-table-wrap"></div>
+      <a id="download-csv" class="hidden" download>Download CSV</a>
+    </section>
+  </main>
+
+  <footer>
+    scTenifoldpy &mdash; <a href="https://github.com/qwerty239qwe/scTenifoldpy" target="_blank" rel="noopener">source &amp; docs</a>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -28,6 +28,7 @@ nav:
   - Parallel Backends: parallel-backends.md
   - Workflow Output: workflow-output.md
   - CLI: cli.md
+  - Local Web UI: ui.md
   - API Reference:
       - Overview: api-reference.md
       - High-Level API: api/high-level.md

@@ -9,6 +9,28 @@
 
 `scTenifoldpy` is a Python implementation of the scTenifold suite: **scTenifoldNet** (cross-condition GRN comparison), **scTenifoldKnk** (virtual knockout), and **scTenifoldXct** (cell-cell interaction prediction, provided via the separately maintained `scTenifoldXct` package).
 
+## Local Web UI
+
+Run scTenifoldNet, scTenifoldKnk, or plain GRN construction from a browser instead of code:
+
+```bash
+pip install "scTenifoldpy[ui]"
+sctenifold-ui
+```
+
+`sctenifold-ui` defaults to port 8001 (not the more commonly used 8000, to
+lower the odds of colliding with another local server) and opens
+`http://127.0.0.1:8001` in your browser. Use `--port` to pick a different one.
+
+![scTenifoldpy local web UI: workflow picker (Net / Knk / GRN-only) and dataset step](docs/images/ui-screenshot.png)
+
+This opens a local page (`http://127.0.0.1:8001`) where you can try a
+bundled synthetic dataset or the real 10x PBMC3k dataset (the one behind
+the Seurat/Scanpy tutorials), or upload your own data as a genes-by-cells
+CSV or an AnnData `.h5ad` file. Pick a workflow, run it, and download the
+ranked-gene or ranked-edge results as CSV. Everything runs locally; no
+data leaves your machine. See [the UI guide](docs/ui.md) for details.
+
 ## Installation
 
 ```bash
@@ -29,10 +51,12 @@ Optional extras:
 uv venv
 uv add "scTenifoldpy[scanpy]"
 uv add "scTenifoldpy[parallel-ray]"
+uv add "scTenifoldpy[ui]"
 
 # or use pip
 pip install "scTenifoldpy[scanpy]"
 pip install "scTenifoldpy[parallel-ray]"
+pip install "scTenifoldpy[ui]"
 ```
 
 The `scTenifoldXct` cell-cell interaction workflow is shipped as a

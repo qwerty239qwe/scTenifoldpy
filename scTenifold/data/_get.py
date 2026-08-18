@@ -1,3 +1,5 @@
+import os
+from functools import lru_cache
 from typing import Dict, List, Union
 import zipfile
 from io import BytesIO
@@ -19,6 +21,19 @@ _repo_tree_url = "https://api.github.com/repos/{owner}/scTenifold-data/git/trees
 __all__ = ["list_data", "fetch_data"]
 
 
+def _github_api_headers() -> Dict[str, str]:
+    """Auth header for api.github.com, if a token is available.
+
+    Unauthenticated requests to the GitHub REST API are capped at 60/hour
+    per source IP -- easy to exhaust in CI, where many runs can share an
+    IP. An authenticated request (e.g. the ambient ``GITHUB_TOKEN`` every
+    GitHub Actions run gets for free) raises that to 5000/hour. Falls back
+    to unauthenticated if no token is set, e.g. for a plain local install.
+    """
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def fetch_and_extract(url: str, saved_path: Union[str, Path]) -> None:
     """Download a zip archive and extract it to ``saved_path``."""
     resp = requests.get(url, stream=True)
@@ -38,6 +53,22 @@ def download_url(url: str, save_path: Union[str, Path], chunk_size: int = 128) -
             fd.write(chunk)
 
 
+@lru_cache(maxsize=None)
+def _fetch_repo_tree(owner: str) -> tuple:
+    """The actual network call behind list_data(), cached per owner.
+
+    The repo tree this reads almost never changes within a process's
+    lifetime, and fetch_data() calls list_data() once per dataset --
+    without this, five fetch_data() calls in a row (e.g. one per test in
+    tests/test_data.py) make five identical requests against a 60/hour
+    unauthenticated rate limit for no benefit. Returns a tuple (not a
+    list) so lru_cache can't hand callers a shared mutable object.
+    """
+    response = requests.get(_repo_tree_url.format(owner=owner), headers=_github_api_headers())
+    response.raise_for_status()
+    return tuple(response.json()["tree"])
+
+
 def list_data(owner: str = "qwerty239qwe",
               return_list: bool = True) -> Union[Dict[str, Dict[str, List[str]]], List[str]]:
     """
@@ -54,9 +85,7 @@ def list_data(owner: str = "qwerty239qwe",
         The obtainable data store in a dict, structure {'data_name': {'group': ['file_names']}}
         or in a list of data_names
     """
-    response = requests.get(_repo_tree_url.format(owner=owner))
-    response.raise_for_status()
-    tree = response.json()['tree']
+    tree = _fetch_repo_tree(owner)
     ds_list = [p["path"] for p in tree if "/" not in p["path"] and p["type"] == "tree"]
     if return_list:
         return ds_list

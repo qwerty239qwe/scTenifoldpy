@@ -60,6 +60,7 @@ The returned DataFrame has one row per shared gene with columns
 - [Quickstart](quickstart.md): end-to-end runnable examples.
 - [Tutorials](source/1_data.ipynb): notebook examples for data,
   scTenifoldNet, virtual knockout, and visualization.
+- [Local Web UI](ui.md): run Net/Knk/GRN-only from a browser (optional extra).
 - [scTenifoldXct](xct.md): cell-cell interaction analysis (optional extra).
 - [Parallel Backends](parallel-backends.md): scale across cores or a Ray
   cluster.
