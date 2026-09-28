@@ -156,7 +156,7 @@ class RRandom:
         if size > n:
             raise ValueError("cannot take a sample larger than the population when replace is False")
         out = np.empty(size, dtype=int)
-        if n <= 1e7 and size <= n / 2:
+        if n > 1e7 and size <= n / 2:
             # sample2(): draw until 'size' distinct values are found
             seen = set()
             i = 0

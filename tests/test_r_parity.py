@@ -31,6 +31,11 @@ def test_rng_matches_r():
     # set.seed(1); sample(1:100, 5) and sample(1:10, 8)
     np.testing.assert_array_equal(RRandom(1).sample(100, 5, replace=False) + 1, [68, 39, 1, 34, 87])
     np.testing.assert_array_equal(RRandom(1).sample(10, 8, replace=False) + 1, [9, 4, 7, 1, 2, 5, 3, 10])
+    # set.seed(1); sample(1:20, 10) and set.seed(42); sample(1:6, 3): size <= n / 2 with
+    # repeated indices, where R's partial shuffle and the sample2() hash path disagree
+    np.testing.assert_array_equal(RRandom(1).sample(20, 10, replace=False) + 1,
+                                  [4, 7, 1, 2, 13, 19, 11, 17, 14, 3])
+    np.testing.assert_array_equal(RRandom(42).sample(6, 3, replace=False) + 1, [1, 5, 6])
 
 
 def test_outlier_cells_use_boxplot_stats_hinges():
