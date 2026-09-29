@@ -58,6 +58,5 @@ therefore produce identical networks regardless of backend.
 
 ## Deprecated Alias
 
-``n_cpus`` is kept as an alias for ``n_jobs`` during the ``0.2.x``
-series and emits a ``DeprecationWarning``. It will be removed in
-``0.3``.
+``n_cpus`` is kept as an alias for ``n_jobs`` and emits a
+``DeprecationWarning``. It will be removed in a future release.

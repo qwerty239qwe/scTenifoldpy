@@ -54,6 +54,10 @@ settings and `seed = 1`.
 - The CP-ALS decomposition works on contiguous copies of the tensor
   slices, which is several times faster on large networks with the same
   results.
+- `scTenifold.__version__` is read from the installed package metadata, so
+  it always matches `pyproject.toml` (it still said `0.3.0` in 0.4.0).
+- The `n_cpus` deprecation message no longer names a past release for its
+  removal.
 
 ## 0.4.0
 

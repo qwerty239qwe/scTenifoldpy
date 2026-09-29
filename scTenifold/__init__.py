@@ -8,7 +8,12 @@ __all__ = ['scTenifoldNet', 'scTenifoldKnk',
            "set_seed", "get_Xct_pairs", "plot_XNet"]
 
 
-__version__ = "0.3.0"
+# The version is set in pyproject.toml
+try:
+    from importlib.metadata import PackageNotFoundError, version as _version
+    __version__ = _version("scTenifoldpy")
+except PackageNotFoundError:  # a source tree that is not installed
+    __version__ = "0+unknown"
 
 
 # scTenifoldXct is maintained and released separately

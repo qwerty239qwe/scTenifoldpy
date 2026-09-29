@@ -35,7 +35,7 @@ def anndata_to_dataframe(data: ExpressionData, layer: LayerName = None) -> pd.Da
 
 def _resolve_backend(backend: Backend, n_jobs: int, n_cpus: Optional[int]) -> tuple:
     if n_cpus is not None:
-        warn("n_cpus is deprecated and will be removed in a future 0.2.x release; use n_jobs instead.",
+        warn("n_cpus is deprecated and will be removed in a future release; use n_jobs instead.",
              DeprecationWarning,
              stacklevel=3)
         if n_jobs == 1:
