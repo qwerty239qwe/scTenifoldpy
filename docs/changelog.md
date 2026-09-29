@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 (unreleased)
+## 0.5.0
 
 > **Breaking change: results differ from 0.4.x.** This release changes the
 > random number generator, the PC networks, the tensor decomposition, QC
@@ -25,7 +25,8 @@ settings and `seed = 1`.
   Genes that are constant in the sampled cells get no edges; `n_comp = 2`
   is allowed. `make_networks` gains `prior_network`.
 - **Tensor decomposition** defaults to `method="cp_als"`, a port of the R
-  CP-ALS; tensorly methods are still available through `method`. The
+  CP-ALS; tensorly methods are still available through `method`, and
+  `tensorly` is now an optional extra (`pip install "scTenifoldpy[tensorly]"`). The
   default `tol` is `1e-5` (was `1e-6`).
 - **Differential regulation** selects the Box-Cox power as
   `MASS::boxcox`, standardizes with the sample standard deviation, and

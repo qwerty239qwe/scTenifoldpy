@@ -164,8 +164,11 @@ def tensor_decomp(networks: np.ndarray,
         out = cp_decomposition(networks, K=K, max_iter=max_iter, tol=tol,
                                random_state=random_state)["slice_sum"]
     else:
-        import tensorly as tl
-        from tensorly import decomposition
+        try:
+            import tensorly as tl
+            from tensorly import decomposition
+        except ImportError as exc:
+            raise ImportError(f"Install scTenifoldpy[tensorly] to use method='{method}'.") from exc
         factors = getattr(decomposition, method)(networks, rank=K, n_iter_max=max_iter, tol=tol,
                                                  random_state=random_state, **kwargs)
         out = np.sum(tl.cp_to_tensor(factors), axis=-1)

@@ -5,7 +5,7 @@
 - Python **3.9 to 3.14** (declared via ``requires-python`` in
   ``pyproject.toml``).
 - A scientific stack (``numpy``, ``scipy``, ``pandas``, ``scikit-learn``,
-  ``tensorly``, ``networkx``, ``seaborn``), pulled in automatically.
+  ``networkx``, ``seaborn``), pulled in automatically.
 - **No R runtime dependency.** This Python port does not call R, but
   reproduces the results of the R packages scTenifoldNet and
   scTenifoldKnk.
@@ -31,12 +31,14 @@ pip install scTenifoldpy
 |---|---|---|
 | ``scanpy`` | ``scanpy>=1.9`` for AnnData interop | ``uv pip install "scTenifoldpy[scanpy]"`` |
 | ``parallel-ray`` | ``ray>=2`` for the ``"ray"`` network-construction backend | ``uv pip install "scTenifoldpy[parallel-ray]"`` |
+| ``tensorly`` | ``tensorly>=0.8`` for tensorly decomposition methods (``tensor_decomp(method=...)`` other than the default ``"cp_als"``) | ``uv pip install "scTenifoldpy[tensorly]"`` |
 | ``xct`` | the separately maintained ``scTenifoldXct`` package (pulls ``torch``, ``scanpy``, ``anndata``, ``ray``, ... transitively) for the cell-cell interaction workflow | ``uv pip install "scTenifoldpy[xct]"`` |
 | ``ui`` | ``fastapi``, ``uvicorn``, ``python-multipart``, ``anndata`` for the local web UI (``sctenifold-ui``), including ``.h5ad`` upload support | ``uv pip install "scTenifoldpy[ui]"`` |
 | ``docs`` | ``mkdocs-material`` and ``mkdocstrings`` for building these docs | ``uv pip install "scTenifoldpy[docs]"`` |
 
 The equivalent pip commands are ``pip install "scTenifoldpy[scanpy]"``,
 ``pip install "scTenifoldpy[parallel-ray]"``,
+``pip install "scTenifoldpy[tensorly]"``,
 ``pip install "scTenifoldpy[xct]"``,
 ``pip install "scTenifoldpy[ui]"``, and
 ``pip install "scTenifoldpy[docs]"``.

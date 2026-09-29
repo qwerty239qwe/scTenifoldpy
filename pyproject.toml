@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scTenifoldpy"
-version = "0.4.0"
+version = "0.5.0"
 description = "Python implementation of scTenifoldNet and scTenifoldKnk workflows, with optional scTenifoldXct cell-cell interaction support."
 readme = "README.md"
 requires-python = ">=3.9,<3.15"
@@ -32,7 +32,6 @@ dependencies = [
   "scikit-learn>=1.1",
   "scipy>=1.9",
   "seaborn>=0.12",
-  "tensorly>=0.8",
   "threadpoolctl>=2",
   "typer>=0.7",
 ]
@@ -49,6 +48,7 @@ sctenifold-ui = "scTenifold.webapp.cli:main"
 [project.optional-dependencies]
 scanpy = ["scanpy>=1.9"]
 parallel-ray = ["ray>=2"]
+tensorly = ["tensorly>=0.8"]
 xct = ["scTenifoldXct>=0.2; python_version >= '3.10'"]
 ui = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9", "anndata>=0.10"]
 docs = ["mkdocs-jupyter>=0.24", "mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
