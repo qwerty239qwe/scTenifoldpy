@@ -658,7 +658,8 @@ def d_regulation(data: pd.DataFrame,
     Same as ``dRegulation`` in the R packages: the distance of each gene
     between conditions is raised to the Box-Cox power that best normalizes
     the distances, and standardized into Z-scores. P-values follow the
-    chi-square distribution of the squared distance relative to its mean.
+    chi-square distribution of the squared distance relative to its mean over
+    the genes that were not knocked out (``ko_genes``).
     Genes whose distance is at the level of floating-point noise (at most
     ``sqrt(eps)`` times the largest absolute coordinate) did not move between
     conditions and get a p-value of 1.
@@ -672,17 +673,24 @@ def d_regulation(data: pd.DataFrame,
     ascending: bool or list of bool, default = True
         Sorted ascending (otherwise descending)
     **kwargs
-        Keyword arguments for statistic analyses, and n_ko_genes (if any)
+        Keyword arguments for statistic analyses, and the knocked-out genes (if any)
             boxcox_kws - {"lmbda": value} fixes the Box-Cox power
             chi2_kws - kwargs for chi-square test
+            ko_genes - gene name or list of names left out of the expectation.
+                The knocked-out genes are perturbed by construction; their
+                large distances would inflate the expectation and hide the
+                other genes. They are still reported. Same as ``gKO`` in R
+                (default None, all genes)
             n_ko_genes - int, number of largest distances left out of the
-                expectation (default 0, as in R)
+                expectation, ignored when ko_genes is given (default 0)
 
     Examples
     ---------
     d_reg_df = d_regulation(ma_df)
 
     d_reg_df = d_regulation(ma_df, boxcox_kws={"lmbda": 0.5}, chi2_kws={"df": 1})
+
+    d_reg_df = d_regulation(ma_df, ko_genes=["Dmd"])
 
     Returns
     -------
@@ -699,6 +707,20 @@ def d_regulation(data: pd.DataFrame,
     values = data.to_numpy(dtype=float)
     n_genes = len(gene_names)
     d_metrics = np.sqrt(((values[:n_genes] - values[n_genes:]) ** 2).sum(axis=1))
+    ko_genes = kwargs.get("ko_genes")
+    if isinstance(ko_genes, str):
+        ko_genes = [ko_genes]
+    if ko_genes is not None:
+        missing = [g for g in ko_genes if g not in set(gene_names)]
+        if missing:
+            raise ValueError(f"The following genes are not present in the manifold alignment: {missing}")
+        is_ko = np.isin(gene_names, list(ko_genes))
+        if is_ko.all():
+            raise ValueError("At least one gene that was not knocked out is required to compute the expectation")
+    else:
+        n_ko_genes = kwargs.get("n_ko_genes") if "n_ko_genes" in kwargs else 0
+        is_ko = np.zeros(n_genes, dtype=bool)
+        is_ko[np.argsort(d_metrics)[::-1][:n_ko_genes]] = True
     boxcox_kws = kwargs.get("boxcox_kws") if "boxcox_kws" in kwargs else {}
     chi2_kws = dict(kwargs.get("chi2_kws")) if "chi2_kws" in kwargs else {}
     if "df" not in chi2_kws:
@@ -715,8 +737,9 @@ def d_regulation(data: pd.DataFrame,
 
     with np.errstate(divide="ignore", invalid="ignore"):
         z_scores = (t_d_metrics - t_d_metrics.mean()) / t_d_metrics.std(ddof=1)
-        n_ko_genes = kwargs.get("n_ko_genes") if "n_ko_genes" in kwargs else 0
-        expected_val = np.mean(np.power(d_metrics[np.argsort(d_metrics)[::-1][n_ko_genes:]], 2))
+        # The knocked-out genes are perturbed by construction; their large
+        # distances would inflate the expectation and hide the other genes
+        expected_val = np.mean(np.power(d_metrics[~is_ko], 2))
         FC = np.power(d_metrics, 2) / expected_val
     p_values = stats.chi2.sf(FC, **chi2_kws)
 

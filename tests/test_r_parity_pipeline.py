@@ -48,7 +48,7 @@ def _assert_dregulation_close(actual, expected, z_atol=1e-7):
 def test_fixture_versions():
     versions = (FIXTURES / "versions.txt").read_text()
     assert "scTenifoldNet 1.4.3" in versions
-    assert "scTenifoldKnk 1.1.4" in versions
+    assert "scTenifoldKnk 1.1.5" in versions
 
 
 def test_qc_keeps_the_same_cells():
@@ -69,6 +69,13 @@ def net():
 @pytest.fixture(scope="module")
 def knk():
     sc = scTenifoldKnk(_counts("X_counts.csv.gz"), ko_genes=["ng10"], qc_kws={"min_lib_size": 30})
+    sc.build()
+    return sc
+
+
+@pytest.fixture(scope="module")
+def knk_multi():
+    sc = scTenifoldKnk(_counts("X_counts.csv.gz"), ko_genes=["ng10", "ng20"], qc_kws={"min_lib_size": 30})
     sc.build()
     return sc
 
@@ -110,3 +117,11 @@ def test_knk_manifold_alignment(knk):
 
 def test_knk_differential_regulation(knk):
     _assert_dregulation_close(knk.d_regulation, pd.read_csv(FIXTURES / "knk_dregulation.csv.gz"))
+
+
+def test_knk_multi_manifold_alignment(knk_multi):
+    _assert_manifold_close(knk_multi.manifold, _read("knk_multi_manifold.csv.gz"))
+
+
+def test_knk_multi_differential_regulation(knk_multi):
+    _assert_dregulation_close(knk_multi.d_regulation, pd.read_csv(FIXTURES / "knk_multi_dregulation.csv.gz"))
