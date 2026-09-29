@@ -348,7 +348,7 @@ def pc_net_calc(data: pd.DataFrame,  # genes x cells
                 scale_scores: bool = True,
                 symmetric: bool = False,
                 q: float = 0.,
-                random_state: int = 1,
+                random_state: Optional[int] = None,
                 prior_network: Optional[pd.DataFrame] = None) -> np.ndarray:
     """Compute a single principal-component (PC) network.
 
@@ -370,8 +370,9 @@ def pc_net_calc(data: pd.DataFrame,  # genes x cells
     q
         Quantile cutoff in ``[0, 1]`` below which weights are zeroed.
     random_state
-        Unused; the coefficients are computed exactly. Kept so that existing
-        calls keep working.
+        Deprecated and ignored: the coefficients are computed exactly, so
+        there is nothing to seed. The cells are sampled in
+        :func:`make_networks`.
     prior_network
         Optional two-column DataFrame of (regulator, target) edges.
 
@@ -379,6 +380,12 @@ def pc_net_calc(data: pd.DataFrame,  # genes x cells
     -------
     Dense adjacency matrix of the genes expressed in the selected cells.
     """
+    if random_state is not None:
+        warn("random_state is ignored by pc_net_calc, which computes the network exactly, "
+             "and will be removed in a future release. Seed the cell sampling with "
+             "make_networks(random_state=...) instead.",
+             DeprecationWarning,
+             stacklevel=2)
     assert 0 <= q <= 1
     Z = data.iloc[:, selected_samples]
     assert not any(Z.index.duplicated()), "some genes are duplicated"
@@ -467,13 +474,22 @@ def make_networks(data: ExpressionData,
                        prior_network=prior_network)
     if backend == "serial":
         results = [pc_net_calc(data, selected_samples=sample, **network_kws) for sample in sel_samples]
-    elif backend in {"joblib-loky", "joblib-threading"}:
+    elif backend == "joblib-loky":
         from joblib import Parallel, delayed
-        prefer = "processes" if backend == "joblib-loky" else "threads"
-        results = Parallel(n_jobs=n_jobs, prefer=prefer)(
+        results = Parallel(n_jobs=n_jobs, prefer="processes")(
             delayed(pc_net_calc)(data, selected_samples=sample, **network_kws)
             for sample in sel_samples
         )
+    elif backend == "joblib-threading":
+        from joblib import Parallel, delayed
+        from threadpoolctl import threadpool_limits
+        # Concurrent calls into a multithreaded BLAS (OpenBLAS in particular)
+        # can crash or hang, so each thread gets a single-threaded BLAS
+        with threadpool_limits(limits=1, user_api="blas"):
+            results = Parallel(n_jobs=n_jobs, prefer="threads")(
+                delayed(pc_net_calc)(data, selected_samples=sample, **network_kws)
+                for sample in sel_samples
+            )
     else:
         try:
             from importlib import import_module

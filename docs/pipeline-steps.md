@@ -58,6 +58,13 @@ precision (the manifold up to the sign of each column). Edges whose
 weight ties the quantile threshold, which happens with duplicated
 genes, can be kept by one implementation and dropped by the other.
 
+When some genes have distances at the level of floating-point noise,
+their Box-Cox transformed distances depend on the last bits of the
+arithmetic, and so do the mean and standard deviation used for every
+Z-score: Z can then differ slightly between implementations, or between
+runs, for all genes. Distances, fold changes, p-values and the ranking do
+not depend on it.
+
 ## ``run_step`` Overrides
 
 ```python

@@ -51,7 +51,8 @@ def cp_decomposition(tensor: np.ndarray,
     # R fills each factor column by column from one rnorm() call per mode
     rng = RRandom(random_state)
     U = [rng.rnorm(m * K).reshape((m, K), order="F") for m in (I, J, n_slices)]
-    slices = [tensor[:, :, k] for k in range(n_slices)]
+    # tensor[:, :, k] is strided; contiguous copies make the products much faster
+    slices = [np.ascontiguousarray(tensor[:, :, k]) for k in range(n_slices)]
 
     curr_iter = 1
     converged = False

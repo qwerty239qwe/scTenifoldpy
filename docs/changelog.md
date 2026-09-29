@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (unreleased)
+
+> **Breaking change: results differ from 0.4.x.** This release changes the
+> random number generator, the PC networks, the tensor decomposition, QC
+> and the Box-Cox step, so networks and gene rankings are different from
+> those of 0.4.x for the same data. Results from 0.4.x **cannot be
+> reproduced with this version, even by passing the old parameters** (such
+> as `random_state=42`, `method="parafac"` or `tol=1e-6`). To reproduce
+> earlier results, pin the version you used, e.g.
+> `pip install "scTenifoldpy<0.5"`.
 
 ### Same results as the R packages
 
@@ -34,6 +43,17 @@ settings and `seed = 1`.
   edges.
 - The shipped `config/net_config.yml` and `config/knk_config.yml` use these
   defaults.
+
+### Other changes
+
+- `pc_net_calc` warns (`DeprecationWarning`) when `random_state` is passed:
+  the networks are exact, so it has no effect, and it will be removed.
+- `backend="joblib-threading"` limits BLAS to one thread per worker (via
+  `threadpoolctl`, now a direct dependency), since concurrent calls into a
+  multithreaded OpenBLAS could crash or hang.
+- The CP-ALS decomposition works on contiguous copies of the tensor
+  slices, which is several times faster on large networks with the same
+  results.
 
 ## 0.4.0
 

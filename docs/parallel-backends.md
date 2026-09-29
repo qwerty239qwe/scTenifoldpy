@@ -10,7 +10,7 @@ heavy step accepts a ``backend`` / ``n_jobs`` pair.
 |---|---|---|---|
 | ``"serial"`` (default) | none | none | Small data, reproducibility checks, debugging. |
 | ``"joblib-loky"`` | processes | none | CPU-bound runs on a single machine; bypasses the GIL. |
-| ``"joblib-threading"`` | threads | none | NumPy/BLAS-heavy runs that release the GIL; lower memory. |
+| ``"joblib-threading"`` | threads | none | Lower memory than processes; BLAS is limited to one thread per worker. |
 | ``"ray"`` | processes / cluster | ``ray>=2`` (extra) | Larger fan-out or running across multiple machines. |
 
 ## Usage
@@ -33,6 +33,14 @@ result = compare_networks(
     network_kws={"n_nets": 10},   # backend/n_jobs propagated automatically
 )
 ```
+
+The PC networks are dominated by dense linear algebra, which the BLAS
+library already runs on all cores, so a parallel backend often gives
+little speed-up over ``"serial"``. With ``"joblib-threading"`` every
+worker calls BLAS at the same time; multithreaded BLAS libraries such as
+OpenBLAS can crash or hang when they are used this way, so
+``make_networks`` limits BLAS to one thread (with ``threadpoolctl``)
+while the threaded workers run.
 
 ## ``n_jobs`` Semantics
 

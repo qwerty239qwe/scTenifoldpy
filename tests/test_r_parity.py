@@ -14,7 +14,7 @@ import yaml
 from scTenifold import scTenifoldKnk, scTenifoldNet
 from scTenifold.core._QC import _fivenum, sc_QC
 from scTenifold.core._decomposition import cp_decomposition
-from scTenifold.core._networks import _boxcox_lambda, d_regulation, make_networks, pc_net
+from scTenifold.core._networks import _boxcox_lambda, d_regulation, make_networks, pc_net, pc_net_calc
 from scTenifold.core._rng import RRandom
 
 
@@ -102,6 +102,34 @@ def test_make_networks_is_reproducible_across_backends():
                              n_jobs=2, verbosity=0)
     for a, b in zip(serial, threaded):
         np.testing.assert_array_equal(a.toarray(), b.toarray())
+
+
+def test_pc_net_calc_random_state_is_deprecated():
+    X = pd.DataFrame(np.random.default_rng(6).poisson(2, size=(10, 30)), index=[f"g{i}" for i in range(10)])
+    with pytest.warns(DeprecationWarning, match="random_state is ignored"):
+        seeded = pc_net_calc(X, selected_samples=np.arange(30), random_state=42)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        unseeded = pc_net_calc(X, selected_samples=np.arange(30))
+    np.testing.assert_array_equal(seeded, unseeded)
+
+
+def test_threading_backend_uses_single_threaded_blas(monkeypatch):
+    threadpoolctl = pytest.importorskip("threadpoolctl")
+    if not any(i["user_api"] == "blas" for i in threadpoolctl.threadpool_info()):
+        pytest.skip("no BLAS library detected by threadpoolctl")
+    from scTenifold.core import _networks
+    seen = []
+    original = _networks.pc_net_calc
+
+    def recording_pc_net_calc(*args, **kwargs):
+        seen.extend(i["num_threads"] for i in threadpoolctl.threadpool_info() if i["user_api"] == "blas")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(_networks, "pc_net_calc", recording_pc_net_calc)
+    X = pd.DataFrame(np.random.default_rng(7).poisson(2, size=(15, 40)), index=[f"g{i}" for i in range(15)])
+    make_networks(X, n_nets=4, n_samp_cells=30, backend="joblib-threading", n_jobs=2, verbosity=0)
+    assert seen and set(seen) == {1}
 
 
 def test_cp_decomposition_recovers_low_rank_tensor():
