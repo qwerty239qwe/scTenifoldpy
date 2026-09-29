@@ -6096,7 +6096,7 @@ wheels = [
 
 [[package]]
 name = "sctenifoldpy"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "joblib" },
@@ -6121,6 +6121,7 @@ dependencies = [
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "seaborn" },
     { name = "tensorly" },
+    { name = "threadpoolctl" },
     { name = "typer", version = "0.23.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "typer", version = "0.25.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
@@ -6198,6 +6199,7 @@ requires-dist = [
     { name = "sctenifoldxct", marker = "python_full_version >= '3.10' and extra == 'xct'", specifier = ">=0.2" },
     { name = "seaborn", specifier = ">=0.12" },
     { name = "tensorly", specifier = ">=0.8" },
+    { name = "threadpoolctl", specifier = ">=2" },
     { name = "typer", specifier = ">=0.7" },
     { name = "uvicorn", marker = "extra == 'ui'", specifier = ">=0.29" },
 ]

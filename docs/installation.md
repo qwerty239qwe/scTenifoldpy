@@ -6,9 +6,9 @@
   ``pyproject.toml``).
 - A scientific stack (``numpy``, ``scipy``, ``pandas``, ``scikit-learn``,
   ``tensorly``, ``networkx``, ``seaborn``), pulled in automatically.
-- **No R runtime dependency.** This Python port does not call R; its
-  principal-component network step uses
-  ``sklearn.utils.extmath.randomized_svd``.
+- **No R runtime dependency.** This Python port does not call R, but
+  reproduces the results of the R packages scTenifoldNet and
+  scTenifoldKnk.
 
 ## Core Install
 

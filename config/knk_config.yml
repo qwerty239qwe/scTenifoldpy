@@ -5,15 +5,15 @@ dr_kws:
 ko_genes: []
 ko_method: default
 ma_kws:
-  d: 30
+  d: 2
   tol: 1.0e-08
 nc_kws:
   n_comp: 3
   n_cpus: -1
   n_nets: 10
   n_samp_cells: 500
-  q: 0.95
-  random_state: 42
+  q: 0.9
+  random_state: 1
   scale_scores: true
   symmetric: false
 qc_kws:
@@ -25,9 +25,9 @@ qc_kws:
   remove_outlier_cells: true
 strict_lambda: 0
 td_kws:
-  K: 5
+  K: 3
   max_iter: 1000
-  method: parafac
-  n_decimal: 1
-  random_state: 42
-  tol: 1.0e-06
+  method: cp_als
+  n_decimal: 3
+  random_state: 1
+  tol: 1.0e-05

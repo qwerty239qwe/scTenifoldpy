@@ -2,6 +2,7 @@ import json
 import time
 from pathlib import Path
 from typing import Dict, Iterable, List, Literal, Optional, Union
+from warnings import warn
 import inspect
 
 import numpy as np
@@ -37,6 +38,8 @@ class scBase:
     """
 
     cls_prop = ["shared_gene_names", "strict_lambda"]
+    # Defaults of the R pipelines that differ from the step functions' own
+    step_defaults: Dict[str, Kwargs] = {}
     kw_sigs = {"qc_kws": inspect.signature(sc_QC),
                "nc_kws": inspect.signature(make_networks),
                "td_kws": inspect.signature(tensor_decomp),
@@ -58,16 +61,24 @@ class scBase:
         self.manifold: Optional[pd.DataFrame] = None
         self.d_regulation: Optional[pd.DataFrame] = None
         self.shared_gene_names = None
-        self.qc_kws = {} if qc_kws is None else qc_kws
-        self.nc_kws = {} if nc_kws is None else nc_kws
-        self.td_kws = {} if td_kws is None else td_kws
-        self.ma_kws = {} if ma_kws is None else ma_kws
-        self.dr_kws = {} if dr_kws is None else dr_kws
+        self.qc_kws = self._with_defaults("qc_kws", qc_kws)
+        self.nc_kws = self._with_defaults("nc_kws", nc_kws)
+        self.td_kws = self._with_defaults("td_kws", td_kws)
+        self.ma_kws = self._with_defaults("ma_kws", ma_kws)
+        self.dr_kws = self._with_defaults("dr_kws", dr_kws)
         self.step_comps = {"qc": self.QC_dict,
                            "nc": self.network_dict,
                            "td": self.tensor_dict,
                            "ma": self.manifold,
                            "dr": self.d_regulation}
+
+    @classmethod
+    def _with_defaults(cls, step_name: str, kws: Optional[Kwargs]) -> Kwargs:
+        return {**cls.step_defaults.get(step_name, {}), **({} if kws is None else kws)}
+
+    def _step_kws(self, step_name: str, kwargs: Kwargs) -> Kwargs:
+        # One-shot overrides replace the stored kws, over the pipeline defaults
+        return getattr(self, step_name) if kwargs == {} else self._with_defaults(step_name, kwargs)
 
     @classmethod
     def _load_comp(cls,
@@ -158,8 +169,10 @@ class scBase:
         -------
         Mapping of keyword name to default value.
         """
-        return {n: p.default for n, p in cls.kw_sigs[f"{step_name}"].parameters.items()
-                if not (p.default is p.empty)}
+        kws = {n: p.default for n, p in cls.kw_sigs[f"{step_name}"].parameters.items()
+               if not (p.default is p.empty)}
+        kws.update(cls.step_defaults.get(step_name, {}))
+        return kws
 
     @staticmethod
     def _infer_groups(*args: Kwargs) -> List[str]:
@@ -171,7 +184,9 @@ class scBase:
     def _QC(self, label, plot: bool = True, **kwargs):
         self.QC_dict[label] = self.data_dict[label].copy()
         self.QC_dict[label].loc[:, "gene"] = self.QC_dict[label].index
-        self.QC_dict[label] = self.QC_dict[label].groupby(by="gene").sum()
+        # sort=False keeps the input gene order, which the random
+        # initialization of the tensor decomposition depends on
+        self.QC_dict[label] = self.QC_dict[label].groupby(by="gene", sort=False).sum()
         self.QC_dict[label] = sc_QC(self.QC_dict[label], **kwargs)
         if plot:
             plot_hist(self.QC_dict[label], label)
@@ -291,7 +306,14 @@ class scTenifoldNet(scBase):
         Overrides for :func:`manifold_alignment`.
     dr_kws
         Overrides for :func:`d_regulation`.
+
+    Notes
+    -----
+    With the default settings the results are the same as those of
+    ``scTenifoldNet()`` in R with its default settings and ``seed = 1``.
     """
+
+    step_defaults = {"td_kws": {"K": 3, "n_decimal": 1}}
 
     def __init__(self,
                  x_data: ExpressionData,
@@ -369,10 +391,12 @@ class scTenifoldNet(scBase):
             - ``"nc"`` — PC network construction on the shared gene
               set. Reads ``self.QC_dict``; writes ``self.network_dict``
               and ``self.shared_gene_names``.
-            - ``"td"`` — tensor decomposition + symmetrisation. Reads
-              ``self.network_dict``; writes ``self.tensor_dict``.
+            - ``"td"`` — tensor decomposition. Reads
+              ``self.network_dict``; writes ``self.tensor_dict``. The
+              self-loops are kept, as the alignment uses them; the R
+              package sets them to zero in the networks it returns.
             - ``"ma"`` — manifold alignment between the two decomposed
-              tensors. Writes ``self.manifold``.
+              tensors, after symmetrising them. Writes ``self.manifold``.
             - ``"dr"`` — differential regulation from the aligned
               manifold. Writes ``self.d_regulation``.
         **kwargs
@@ -388,8 +412,7 @@ class scTenifoldNet(scBase):
         start_time = time.perf_counter()
         if step_name == "qc":
             for label in self.data_dict:
-                self._QC(label,
-                         **(self.qc_kws if kwargs == {} else kwargs))
+                self._QC(label, **self._step_kws("qc_kws", kwargs))
                 self._norm(label)
                 print("finish QC:", label)
         elif step_name == "nc":
@@ -397,19 +420,18 @@ class scTenifoldNet(scBase):
             self.shared_gene_names = [gene for gene in self.QC_dict[self.x_label].index if gene in y_gene_names]
             for label, qc_data in self.QC_dict.items():
                 self._make_networks(label, data=qc_data.loc[self.shared_gene_names, :],
-                                    **(self.nc_kws if kwargs == {} else kwargs))
+                                    **self._step_kws("nc_kws", kwargs))
         elif step_name == "td":
             for label, qc_data in self.QC_dict.items():
-                self._tensor_decomp(label, self.shared_gene_names, **(self.td_kws if kwargs == {} else kwargs))
-            self.tensor_dict[self.x_label] = (self.tensor_dict[self.x_label] + self.tensor_dict[self.x_label].T) / 2
-            self.tensor_dict[self.y_label] = (self.tensor_dict[self.y_label] + self.tensor_dict[self.y_label].T) / 2
+                self._tensor_decomp(label, self.shared_gene_names, **self._step_kws("td_kws", kwargs))
         elif step_name == "ma":
-            self.manifold = manifold_alignment(self.tensor_dict[self.x_label],
-                                               self.tensor_dict[self.y_label],
-                                               **(self.ma_kws if kwargs == {} else kwargs))
+            x_net, y_net = self.tensor_dict[self.x_label], self.tensor_dict[self.y_label]
+            self.manifold = manifold_alignment((x_net + x_net.T) / 2,
+                                               (y_net + y_net.T) / 2,
+                                               **self._step_kws("ma_kws", kwargs))
             self.step_comps["ma"] = self.manifold
         elif step_name == "dr":
-            self.d_regulation = d_regulation(self.manifold, **(self.dr_kws if kwargs == {} else kwargs))
+            self.d_regulation = d_regulation(self.manifold, **self._step_kws("dr_kws", kwargs))
             self.step_comps["dr"] = self.d_regulation
         else:
             raise ValueError("This step name is not valid, please choose from qc, nc, td, ma, dr")
@@ -462,23 +484,30 @@ class scTenifoldKnk(scBase):
         Gene name or iterable of names to knock out. ``None`` stores
         an empty list.
     qc_kws
-        Overrides for :func:`sc_QC`. If ``min_exp_avg`` /
-        ``min_exp_sum`` are missing, ``run_step("qc")`` injects KO
-        defaults (0.05 and 25).
+        Overrides for :func:`sc_QC`.
     nc_kws
         Overrides for :func:`make_networks` (``backend``, ``n_jobs``,
         etc.).
     td_kws
         Overrides for :func:`tensor_decomp`.
     ma_kws
-        Overrides for :func:`manifold_alignment`. Defaults to
-        ``{"d": 2}`` when ``None``.
+        Overrides for :func:`manifold_alignment`. ``d`` defaults to 2.
     dr_kws
         Overrides for :func:`d_regulation`.
     ko_kws
         Extra kwargs forwarded to the KO step (e.g. ``degree`` for the
         propagation method).
+
+    Notes
+    -----
+    With the default settings and ``ko_method="default"`` the results are
+    the same as those of ``scTenifoldKnk()`` in R with its default settings
+    and ``seed = 1``.
     """
+
+    step_defaults = {"nc_kws": {"q": 0.9},
+                     "td_kws": {"K": 3, "n_decimal": 3},
+                     "ma_kws": {"d": 2}}
 
     def __init__(self,
                  data: ExpressionData,
@@ -492,7 +521,6 @@ class scTenifoldKnk(scBase):
                  dr_kws: Optional[Kwargs] = None,
                  ko_kws: Optional[Kwargs] = None) -> None:
         """See class docstring for parameter descriptions."""
-        ma_kws = {"d": 2} if ma_kws is None else ma_kws
         super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws, dr_kws=dr_kws)
         self.data_dict["WT"] = pd.DataFrame() if isinstance(data, str) and data == "" else anndata_to_dataframe(data)
         self.strict_lambda = strict_lambda
@@ -566,6 +594,7 @@ class scTenifoldKnk(scBase):
         if self.ko_method == "default":
             self.tensor_dict["KO"] = self.tensor_dict["WT"].copy()
             self.tensor_dict["KO"].loc[ko_genes, :] = 0
+            self._warn_no_outgoing_edges(ko_genes)
         elif self.ko_method == "propagation":
             print(self.QC_dict["WT"].index)
             self.network_dict["KO"] = reconstruct_pcnets(self.network_dict["WT"],
@@ -577,6 +606,18 @@ class scTenifoldKnk(scBase):
             self._tensor_decomp("KO", self.shared_gene_names, **self.td_kws)
             self.tensor_dict["KO"] = strict_direction(self.tensor_dict["KO"], self.strict_lambda).T.copy()
             self.tensor_dict["KO"] = _fill_dataframe_diagonal(self.tensor_dict["KO"], 0)
+
+    def _warn_no_outgoing_edges(self, ko_genes):
+        # A gene without outgoing edges leaves the network unchanged
+        ko_genes = list(dict.fromkeys(ko_genes))
+        no_edges = [g for g in ko_genes if not (self.tensor_dict["WT"].loc[g, :] != 0).any()]
+        if ko_genes and len(no_edges) == len(ko_genes):
+            warn(f"{', '.join(ko_genes)} {'has' if len(ko_genes) == 1 else 'have'} no outgoing edges in the "
+                 "WT network; the knockout does not change the network and the differential regulation "
+                 "results reflect only numerical noise.")
+        elif no_edges:
+            warn("The following genes have no outgoing edges in the WT network, so knocking them out "
+                 f"has no effect: {', '.join(no_edges)}")
 
     def run_step(self,
                  step_name: Literal["qc", "nc", "td", "ko", "ma", "dr"],
@@ -591,9 +632,8 @@ class scTenifoldKnk(scBase):
         step_name
             Which step to run. One of:
 
-            - ``"qc"`` — quality control on the WT sample (no
-              normalisation; injects KO-friendly defaults for
-              ``min_exp_avg``/``min_exp_sum`` if missing).
+            - ``"qc"`` — quality control + CPM normalisation on the WT
+              sample.
             - ``"nc"`` — PC network construction on the WT QC matrix.
               Writes ``self.network_dict["WT"]`` and
               ``self.shared_gene_names``.
@@ -620,18 +660,14 @@ class scTenifoldKnk(scBase):
         """
         start_time = time.perf_counter()
         if step_name == "qc":
-            if "min_exp_avg" not in self.qc_kws:
-                self.qc_kws["min_exp_avg"] = 0.05
-            if "min_exp_sum" not in self.qc_kws:
-                self.qc_kws["min_exp_sum"] = 25
-            self._QC("WT", **(self.qc_kws if kwargs == {} else kwargs))
-            # no norm
+            self._QC("WT", **self._step_kws("qc_kws", kwargs))
+            self.QC_dict["WT"] = cpm_norm(self.QC_dict["WT"])
             print("finish QC: WT")
         elif step_name == "nc":
-            self._make_networks("WT", self.QC_dict["WT"], **(self.nc_kws if kwargs == {} else kwargs))
+            self._make_networks("WT", self.QC_dict["WT"], **self._step_kws("nc_kws", kwargs))
             self.shared_gene_names = self.QC_dict["WT"].index.to_list()
         elif step_name == "td":
-            self._tensor_decomp("WT", self.shared_gene_names, **(self.td_kws if kwargs == {} else kwargs))
+            self._tensor_decomp("WT", self.shared_gene_names, **self._step_kws("td_kws", kwargs))
             self.tensor_dict["WT"] = strict_direction(self.tensor_dict["WT"], self.strict_lambda).T.copy()
         elif step_name == "ko":
             self.tensor_dict["WT"] = _fill_dataframe_diagonal(self.tensor_dict["WT"], 0)
@@ -645,10 +681,10 @@ class scTenifoldKnk(scBase):
         elif step_name == "ma":
             self.manifold = manifold_alignment(self.tensor_dict["WT"],
                                                self.tensor_dict["KO"],
-                                               **(self.ma_kws if kwargs == {} else kwargs))
+                                               **self._step_kws("ma_kws", kwargs))
             self.step_comps["ma"] = self.manifold
         elif step_name == "dr":
-            self.d_regulation = d_regulation(self.manifold, **(self.dr_kws if kwargs == {} else kwargs))
+            self.d_regulation = d_regulation(self.manifold, **self._step_kws("dr_kws", kwargs))
             self.step_comps["dr"] = self.d_regulation
         else:
             raise ValueError("No such step")

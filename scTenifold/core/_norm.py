@@ -18,7 +18,8 @@ def cpm_norm(X: Union[np.ndarray, pd.DataFrame]) -> Union[np.ndarray, pd.DataFra
     """
     lib_size = X.sum(axis=0)
     safe_lib_size = lib_size.replace(0, np.nan) if isinstance(lib_size, pd.Series) else np.where(lib_size == 0, np.nan, lib_size)
-    normalized = X * 1e6 / safe_lib_size
+    # Same order of operations as cpmNormalization in R
+    normalized = X / safe_lib_size * 1e6
     if isinstance(normalized, pd.DataFrame):
         return normalized.fillna(0)
     return np.nan_to_num(normalized)

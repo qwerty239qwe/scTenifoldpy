@@ -24,6 +24,13 @@ def _network_kws(backend: Backend,
     return kws
 
 
+def _decomposition_kws(random_state: int, td_kws: Optional[Kwargs]) -> Kwargs:
+    """Use the top-level ``random_state`` as the default seed of the tensor decomposition."""
+    kws = {} if td_kws is None else dict(td_kws)
+    kws.setdefault("random_state", random_state)
+    return kws
+
+
 def compare_networks(x_data: ExpressionData,
                      y_data: ExpressionData,
                      x_label: str = "X",
@@ -31,7 +38,7 @@ def compare_networks(x_data: ExpressionData,
                      layer: LayerName = None,
                      backend: Backend = "serial",
                      n_jobs: int = 1,
-                     random_state: int = 42,
+                     random_state: int = 1,
                      qc_kws: Optional[Kwargs] = None,
                      network_kws: Optional[Kwargs] = None,
                      td_kws: Optional[Kwargs] = None,
@@ -61,7 +68,9 @@ def compare_networks(x_data: ExpressionData,
         Worker count for the chosen backend. ``-1`` means all available
         cores. Ignored when ``backend="serial"``.
     random_state
-        Seed propagated to the randomized SVD inside network construction.
+        Seed of the cell subsampling in network construction and of the
+        tensor decomposition, as ``seed`` in the R package: with the
+        defaults, the results match ``scTenifoldNet(X, Y, seed = 1)`` in R.
     qc_kws, network_kws, td_kws, ma_kws, dr_kws
         Per-step keyword overrides forwarded to QC, network construction,
         tensor decomposition, manifold alignment and differential
@@ -81,7 +90,7 @@ def compare_networks(x_data: ExpressionData,
         y_label=y_label,
         qc_kws=qc_kws,
         nc_kws=_network_kws(backend, n_jobs, random_state, network_kws),
-        td_kws=td_kws,
+        td_kws=_decomposition_kws(random_state, td_kws),
         ma_kws=ma_kws,
         dr_kws=dr_kws,
     )
@@ -93,7 +102,7 @@ def virtual_knockout(data: ExpressionData,
                      layer: LayerName = None,
                      backend: Backend = "serial",
                      n_jobs: int = 1,
-                     random_state: int = 42,
+                     random_state: int = 1,
                      strict_lambda: float = 0,
                      ko_method: KOMethod = "default",
                      qc_kws: Optional[Kwargs] = None,
@@ -125,7 +134,9 @@ def virtual_knockout(data: ExpressionData,
         Worker count for the chosen backend. ``-1`` means all available
         cores.
     random_state
-        Seed propagated to the randomized SVD inside network construction.
+        Seed of the cell subsampling in network construction and of the
+        tensor decomposition, as ``seed`` in the R package: with the
+        defaults, the results match ``scTenifoldKnk(X, gKO, seed = 1)`` in R.
     strict_lambda
         Strength of the directional pruning applied by
         :func:`strict_direction` to the decomposed WT tensor.
@@ -155,7 +166,7 @@ def virtual_knockout(data: ExpressionData,
         ko_genes=ko_genes,
         qc_kws=qc_kws,
         nc_kws=_network_kws(backend, n_jobs, random_state, network_kws),
-        td_kws=td_kws,
+        td_kws=_decomposition_kws(random_state, td_kws),
         ma_kws=ma_kws,
         dr_kws=dr_kws,
         ko_kws=ko_kws,

@@ -1,5 +1,15 @@
+import numpy as np
 import pandas as pd
 from warnings import warn
+
+
+def _fivenum(x: np.ndarray) -> np.ndarray:
+    """Tukey's five-number summary, as ``fivenum`` in R."""
+    x = np.sort(x)
+    n = len(x)
+    n4 = np.floor((n + 3) / 2) / 2
+    d = np.array([1, n4, (n + 1) / 2, n + 1 - n4, n]) - 1
+    return 0.5 * (x[np.floor(d).astype(int)] + x[np.ceil(d).astype(int)])
 
 
 def sc_QC(X: pd.DataFrame,
@@ -19,7 +29,9 @@ def sc_QC(X: pd.DataFrame,
     min_lib_size: int, float, default = 1000
         Minimum library size of cells
     remove_outlier_cells: bool, default = True
-        Whether the QC function will remove the outlier cells
+        Whether the QC function will remove the outlier cells: cells whose
+        library size is more than 1.5 times the interquartile range beyond
+        the hinges, as ``boxplot.stats`` in R
     min_percent: float, default = 0.05
         Minimum fraction of cells where the gene needs to be expressed to be included in the analysis.
     max_mito_ratio: float, default = 0.1
@@ -43,10 +55,11 @@ def sc_QC(X: pd.DataFrame,
     if remove_outlier_cells:
         lib_size = X.sum(axis=0)
         before_s = X.shape[1]
-        Q1, Q3 = lib_size.quantile([0.25, 0.75])
-        interquartile_range = Q3 - Q1
-        X = X.loc[:, (lib_size >= Q1 - interquartile_range * outlier_coef) &
-                     (lib_size <= Q3 + interquartile_range * outlier_coef)]
+        if len(lib_size) > 0:
+            _, Q1, _, Q3, _ = _fivenum(lib_size.to_numpy(dtype=float))
+            interquartile_range = Q3 - Q1
+            X = X.loc[:, (lib_size >= Q1 - interquartile_range * outlier_coef) &
+                         (lib_size <= Q3 + interquartile_range * outlier_coef)]
         print(f"Removed {before_s - X.shape[1]} outlier cells from original data")
     mt_genes = X.index.str.upper().str.match("^MT-")
     if any(mt_genes):

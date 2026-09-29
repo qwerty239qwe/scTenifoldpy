@@ -1,3 +1,5 @@
+import re
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -15,7 +17,8 @@ from scTenifold.data import TestDataGenerator as _TestDataGenerator, fetch_data,
 
 
 def test_version_metadata():
-    assert scTenifold.__version__ == "0.3.0"
+    pyproject = (Path(__file__).parents[1] / "pyproject.toml").read_text()
+    assert scTenifold.__version__ == re.search(r'^version = "(.+)"', pyproject, re.M).group(1)
 
 
 @pytest.mark.parametrize("backend", ["serial", "joblib-loky", "joblib-threading"])

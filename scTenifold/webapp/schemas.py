@@ -26,7 +26,7 @@ class JobCreate(BaseModel):
     strict_lambda: float = Field(0, ge=0)
     backend: Literal["serial", "joblib-loky", "joblib-threading"] = "serial"
     n_jobs: int = Field(1, ge=-1, description="-1 for all cores, or a positive number of workers")
-    random_state: int = 42
+    random_state: int = 1
     min_lib_size: float = Field(10, ge=0)
     min_percent: float = Field(0.001, ge=0, le=1)
 

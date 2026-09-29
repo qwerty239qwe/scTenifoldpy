@@ -125,8 +125,6 @@ result = compare_networks(
     df_2,
     qc_kws={"min_lib_size": 10, "plot": False},
     network_kws={"n_nets": 3, "n_samp_cells": 100},
-    backend="joblib-threading",
-    n_jobs=4,
 )
 
 knockout = virtual_knockout(
@@ -174,7 +172,7 @@ networks = make_networks(df_1, backend="serial", n_jobs=1)
 networks = make_networks(df_1, backend="joblib-loky", n_jobs=4)
 ```
 
-Supported backends are `serial`, `joblib-loky`, `joblib-threading`, and `ray`. Ray is optional and requires `scTenifoldpy[parallel-ray]`.
+Supported backends are `serial`, `joblib-loky`, `joblib-threading`, and `ray`. Ray is optional and requires `scTenifoldpy[parallel-ray]`. `compare_networks` and `virtual_knockout` take the same `backend` and `n_jobs` arguments. The networks are dominated by linear algebra that the BLAS library already runs on all cores, so a parallel backend often gives little speed-up over `serial`; see [Parallel Backends](docs/parallel-backends.md).
 
 ## CLI
 

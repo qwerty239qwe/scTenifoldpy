@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.5.0 (unreleased)
+
+> **Breaking change: results differ from 0.4.x.** This release changes the
+> random number generator, the PC networks, the tensor decomposition, QC
+> and the Box-Cox step, so networks and gene rankings are different from
+> those of 0.4.x for the same data. Results from 0.4.x **cannot be
+> reproduced with this version, even by passing the old parameters** (such
+> as `random_state=42`, `method="parafac"` or `tol=1e-6`). To reproduce
+> earlier results, pin the version you used, e.g.
+> `pip install "scTenifoldpy<0.5"`.
+
+### Same results as the R packages
+
+`scTenifoldNet` and `scTenifoldKnk` now give the same results as the R
+packages scTenifoldNet 1.4.3 and scTenifoldKnk 1.1.4 with their default
+settings and `seed = 1`.
+
+- **Random numbers**: cells are subsampled and the tensor decomposition is
+  initialized with a port of R's generator (`RRandom`), so `random_state`
+  means the same as `seed` in R. The default is now `1` (was `42`).
+- **PC networks** are exact, computed as `pcNet` in R from one
+  eigendecomposition per network, instead of a randomized SVD per gene.
+  Genes that are constant in the sampled cells get no edges; `n_comp = 2`
+  is allowed. `make_networks` gains `prior_network`.
+- **Tensor decomposition** defaults to `method="cp_als"`, a port of the R
+  CP-ALS; tensorly methods are still available through `method`. The
+  default `tol` is `1e-5` (was `1e-6`).
+- **Differential regulation** selects the Box-Cox power as
+  `MASS::boxcox`, standardizes with the sample standard deviation, and
+  sets the p-value of genes whose distance is at the level of
+  floating-point noise to 1 (warning if that applies to every gene).
+  Results are sorted stably.
+- **QC** detects outlier cells with the hinges of `boxplot.stats` and keeps
+  the input gene order.
+- **scTenifoldNet** uses `K = 3` in the tensor decomposition, and keeps
+  the self-loops in `tensor_dict` (they are symmetrized for the alignment
+  only, as in R).
+- **scTenifoldKnk** normalizes to CPM after QC and no longer adds
+  `min_exp_avg`/`min_exp_sum` filters; it uses `q = 0.9`, `K = 3` and
+  `n_decimal = 3`, and warns when the knocked-out genes have no outgoing
+  edges.
+- The shipped `config/net_config.yml` and `config/knk_config.yml` use these
+  defaults.
+
+### Other changes
+
+- `pc_net_calc` warns (`DeprecationWarning`) when `random_state` is passed:
+  the networks are exact, so it has no effect, and it will be removed.
+- `backend="joblib-threading"` limits BLAS to one thread per worker (via
+  `threadpoolctl`, now a direct dependency), since concurrent calls into a
+  multithreaded OpenBLAS could crash or hang.
+- The CP-ALS decomposition works on contiguous copies of the tensor
+  slices, which is several times faster on large networks with the same
+  results.
+- `scTenifold.__version__` is read from the installed package metadata, so
+  it always matches `pyproject.toml` (it still said `0.3.0` in 0.4.0).
+- The `n_cpus` deprecation message no longer names a past release for its
+  removal.
+
 ## 0.4.0
 
 ### Web UI

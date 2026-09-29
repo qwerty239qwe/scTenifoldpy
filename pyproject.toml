@@ -33,6 +33,7 @@ dependencies = [
   "scipy>=1.9",
   "seaborn>=0.12",
   "tensorly>=0.8",
+  "threadpoolctl>=2",
   "typer>=0.7",
 ]
 

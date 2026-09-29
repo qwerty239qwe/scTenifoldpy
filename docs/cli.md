@@ -39,17 +39,18 @@ nc_kws:
   scale_scores: true
   symmetric: false
   q: 0.95
-  random_state: 42
+  prior_network: null
+  random_state: 1
   backend: serial
   n_jobs: 1
 
 td_kws:
-  method: parafac
+  method: cp_als
   n_decimal: 1
-  K: 5
-  tol: 1.0e-06
+  K: 3
+  tol: 1.0e-05
   max_iter: 1000
-  random_state: 42
+  random_state: 1
 
 ma_kws:
   d: 30
@@ -62,7 +63,8 @@ dr_kws:
 
 The ``scTenifoldKnk`` config has the same shape plus ``data_path`` (not
 ``x_data_path`` / ``y_data_path``), ``strict_lambda``, ``ko_method``,
-``ko_genes``, and ``ko_kws``.
+``ko_genes``, and ``ko_kws``. Its defaults follow the R package:
+``nc_kws.q: 0.9``, ``td_kws.n_decimal: 3`` and ``ma_kws.d: 2``.
 
 ## Run a Workflow
 
