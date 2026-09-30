@@ -510,6 +510,8 @@ class scTenifoldKnk(scBase):
     step_defaults = {"nc_kws": {"q": 0.9},
                      "td_kws": {"K": 3, "n_decimal": 3},
                      "ma_kws": {"d": 2}}
+    # The genes knocked out by the ko step, which can differ from ko_genes
+    cls_prop = scBase.cls_prop + ["_ko_genes_used"]
 
     def __init__(self,
                  data: ExpressionData,
@@ -555,10 +557,12 @@ class scTenifoldKnk(scBase):
              verbose: bool = True,
              **kwargs: object) -> None:
         """Save state plus KO-specific fields so :meth:`load` can rebuild."""
+        # The dr step of a loaded instance needs the genes the ko step used
+        ko_genes_used = {"_ko_genes_used": self._ko_genes_used} if hasattr(self, "_ko_genes_used") else {}
         super().save(file_dir, comps, verbose,
                      data="",
                      ko_method=self.ko_method,
-                     strict_lambda=self.strict_lambda, ko_genes=self.ko_genes)
+                     strict_lambda=self.strict_lambda, ko_genes=self.ko_genes, **ko_genes_used)
 
     def _get_ko_tensor(self, ko_genes, **kwargs):
         if self.ko_method not in ("default", "propagation"):

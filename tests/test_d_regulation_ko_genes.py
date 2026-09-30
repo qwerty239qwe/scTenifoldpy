@@ -121,3 +121,17 @@ def test_knk_uses_the_genes_of_the_ko_step(counts):
 def test_knk_respects_n_ko_genes_in_dr_kws(counts):
     sc = _knk(counts, ["g1"], dr_kws={"n_ko_genes": 0})
     pd.testing.assert_frame_equal(sc.d_regulation, d_regulation(sc.manifold))
+
+
+def test_loaded_knk_uses_the_genes_of_the_ko_step(counts, tmp_path):
+    sc = scTenifoldKnk(counts, ko_genes=["g1"], qc_kws={"min_lib_size": 0},
+                       nc_kws={"n_nets": 3, "n_samp_cells": 300})
+    for step in ["qc", "nc", "td"]:
+        sc.run_step(step)
+    sc.run_step("ko", ko_genes=["g2"])
+    sc.run_step("ma")
+    sc.save(tmp_path / "knk", verbose=False)
+    loaded = scTenifoldKnk.load(tmp_path / "knk")
+    loaded.run_step("dr")
+    pd.testing.assert_frame_equal(loaded.d_regulation, d_regulation(sc.manifold, ko_genes=["g2"]),
+                                  check_exact=False, rtol=1e-12)
