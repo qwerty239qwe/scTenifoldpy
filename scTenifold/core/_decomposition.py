@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,20 @@ from scTenifold.core._utils import timer
 __all__ = ["cp_decomposition", "tensor_decomp"]
 
 
-def cp_decomposition(tensor: np.ndarray,
+def _as_slices(tensor: Union[np.ndarray, Sequence[np.ndarray]]) -> list:
+    # The ALS works on contiguous 2D slices; a list of them avoids holding
+    # the stacked tensor as well (it takes as much memory as all the slices)
+    if isinstance(tensor, np.ndarray):
+        if tensor.ndim != 3:
+            raise ValueError("cp_decomposition expects a 3-mode tensor")
+        return [np.ascontiguousarray(tensor[:, :, k], dtype=float) for k in range(tensor.shape[2])]
+    slices = [np.ascontiguousarray(s, dtype=float) for s in tensor]
+    if not slices or any(s.ndim != 2 or s.shape != slices[0].shape for s in slices):
+        raise ValueError("cp_decomposition expects a 3-mode tensor or a list of 2D slices of the same shape")
+    return slices
+
+
+def cp_decomposition(tensor: Union[np.ndarray, Sequence[np.ndarray]],
                      K: int,
                      max_iter: int = 1000,
                      tol: float = 1e-5,
@@ -24,7 +37,8 @@ def cp_decomposition(tensor: np.ndarray,
     Parameters
     ----------
     tensor
-        Tensor of shape ``(I, J, K_slices)``.
+        Tensor of shape ``(I, J, K_slices)``, or a list of its ``K_slices``
+        slices of shape ``(I, J)``, which avoids a copy of the tensor.
     K
         Number of rank-one components.
     max_iter
@@ -41,19 +55,15 @@ def cp_decomposition(tensor: np.ndarray,
     (``all_resids``), the percent of the norm explained (``norm_percent``)
     and ``slice_sum``, the sum over the last mode of the estimated tensor.
     """
-    tensor = np.asarray(tensor, dtype=float)
-    if tensor.ndim != 3:
-        raise ValueError("cp_decomposition expects a 3-mode tensor")
-    I, J, n_slices = tensor.shape
-    tnsr_norm_sq = np.sum(tensor * tensor)
+    slices = _as_slices(tensor)
+    del tensor
+    (I, J), n_slices = slices[0].shape, len(slices)
+    tnsr_norm_sq = sum(np.vdot(s, s) for s in slices)
     tnsr_norm = np.sqrt(tnsr_norm_sq)
 
     # R fills each factor column by column from one rnorm() call per mode
     rng = RRandom(random_state)
     U = [rng.rnorm(m * K).reshape((m, K), order="F") for m in (I, J, n_slices)]
-    # tensor[:, :, k] is strided; contiguous copies make the products much faster
-    slices = [np.ascontiguousarray(tensor[:, :, k]) for k in range(n_slices)]
-
     curr_iter = 1
     converged = False
     resids = []
@@ -111,7 +121,7 @@ def cp_decomposition(tensor: np.ndarray,
 
 
 @timer
-def tensor_decomp(networks: np.ndarray,
+def tensor_decomp(networks: Union[np.ndarray, Sequence[np.ndarray]],
                   gene_names: Sequence[str],
                   method: str = "cp_als",
                   n_decimal: int = 1,
@@ -129,8 +139,10 @@ def tensor_decomp(networks: np.ndarray,
 
     Parameters
     ----------
-    networks: np.ndarray
-        Concatenated network, expected shape = (n_genes, n_genes, n_pcnets)
+    networks: np.ndarray or list of np.ndarray
+        Concatenated network, expected shape = (n_genes, n_genes, n_pcnets),
+        or a list of the n_pcnets networks of shape (n_genes, n_genes), which
+        avoids a copy of the tensor with the default method
     gene_names: sequence of str
         The name of each gene in the network (order matters)
     method: str, default = 'cp_als'
@@ -160,6 +172,7 @@ def tensor_decomp(networks: np.ndarray,
     http://tensorly.org/stable/modules/api.html#module-tensorly.decomposition
 
     """
+    n_pcnets = networks.shape[-1] if isinstance(networks, np.ndarray) else len(networks)
     if method == "cp_als":
         out = cp_decomposition(networks, K=K, max_iter=max_iter, tol=tol,
                                random_state=random_state)["slice_sum"]
@@ -169,9 +182,11 @@ def tensor_decomp(networks: np.ndarray,
             from tensorly import decomposition
         except ImportError as exc:
             raise ImportError(f"Install scTenifoldpy[tensorly] to use method='{method}'.") from exc
+        if not isinstance(networks, np.ndarray):
+            networks = np.stack(networks, axis=-1)
         factors = getattr(decomposition, method)(networks, rank=K, n_iter_max=max_iter, tol=tol,
                                                  random_state=random_state, **kwargs)
         out = np.sum(tl.cp_to_tensor(factors), axis=-1)
-    out = out / networks.shape[-1]
+    out = out / n_pcnets
     out = np.round(out / np.max(abs(out)), n_decimal)
     return pd.DataFrame(out, index=gene_names, columns=gene_names)

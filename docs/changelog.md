@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5.1
+
+- **scTenifoldKnk leaves the knocked-out genes out of the expectation** of
+  the differential regulation test, as the R package scTenifoldKnk does up
+  to 1.0.3 and again from 1.1.5; earlier versions of scTenifoldpy never
+  did. The fold-change of each gene is its squared distance relative to
+  the mean squared distance of the genes that were not knocked out. With
+  the knocked-out genes in that mean, their large distances hid the other
+  genes, and often only the knocked-out genes were significant
+  (cailab-tamu/scTenifoldKnk#45). Distances, Z-scores and the ranking of
+  the genes do not change; the FC, p-values and adjusted p-values do.
+- `d_regulation` accepts `ko_genes`, a gene name or list of names left out
+  of the expectation. `scTenifoldKnk` passes the genes of its knockout
+  step; setting `ko_genes` or `n_ko_genes` in `dr_kws` overrides them.
+- The QC step of `scTenifoldNet` and `scTenifoldKnk` no longer plots its
+  histogram by default. The plot called `plt.show()`, which with an
+  interactive matplotlib backend stopped the pipeline until the window was
+  closed. Pass `qc_kws={"plot": True}` to get it.
+- The tensor decomposition holds about one copy of the networks instead of
+  up to three: `tensor_decomp` and `cp_decomposition` also accept a list of
+  the networks, which the pipelines now pass, and the norm of the tensor is
+  computed slice by slice. Each copy takes about 8 GB for 10 networks of
+  10,000 genes, so a knockout of that size peaks at about 8 GB instead of
+  about 22 GB. The results are the same.
+- `ko_method="propagation"` no longer prints the gene index.
+
 ## 0.5.0
 
 > **Breaking change: results differ from 0.4.x.** This release changes the

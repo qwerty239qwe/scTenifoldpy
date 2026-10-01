@@ -73,6 +73,11 @@ write_gz(knk$tensorNetworks$WT, "knk_tensor_WT.csv.gz")
 write_gz(knk$manifoldAlignment, "knk_manifold.csv.gz")
 write_table_gz(knk$diffRegulation, "knk_dregulation.csv.gz")
 
+# The same with two genes knocked out together
+knk2 <- scTenifoldKnk(countMatrix = X, gKO = c("ng10", "ng20"), qc_minLibSize = 30, nCores = 1, seed = 1)
+write_gz(knk2$manifoldAlignment, "knk_multi_manifold.csv.gz")
+write_table_gz(knk2$diffRegulation, "knk_multi_dregulation.csv.gz")
+
 writeLines(c(
   R.version.string,
   paste("scTenifoldNet", packageVersion("scTenifoldNet")),

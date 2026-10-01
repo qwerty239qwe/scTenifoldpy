@@ -33,7 +33,7 @@ Returned columns:
 | ``Distance`` | Euclidean distance between aligned manifold embeddings of the X and Y sides of the gene. |
 | ``boxcox-transformed distance`` | Distance after Box-Cox transform. |
 | ``Z`` | Z-score of the transformed distance. |
-| ``FC`` | Squared distance divided by the expected squared distance. |
+| ``FC`` | Squared distance divided by the expected squared distance, the mean over the genes that were not knocked out (all genes in scTenifoldNet). |
 | ``p-value`` | Chi-squared tail probability against ``FC``. |
 | ``adjusted p-value`` | Benjamini-Hochberg-adjusted ``p-value``. |
 

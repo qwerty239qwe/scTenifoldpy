@@ -181,7 +181,9 @@ class scBase:
             grps |= set(kw.keys())
         return list(grps)
 
-    def _QC(self, label, plot: bool = True, **kwargs):
+    def _QC(self, label, plot: bool = False, **kwargs):
+        # plot_hist calls plt.show(), which blocks the pipeline until the
+        # window is closed with an interactive backend; opt in with plot=True
         self.QC_dict[label] = self.data_dict[label].copy()
         self.QC_dict[label].loc[:, "gene"] = self.QC_dict[label].index
         # sort=False keeps the input gene order, which the random
@@ -195,8 +197,8 @@ class scBase:
         self.network_dict[label] = make_networks(data, **kwargs)
 
     def _tensor_decomp(self, label, gene_names, **kwargs):
-        self.tensor_dict[label] = tensor_decomp(np.concatenate([np.expand_dims(network.toarray(), -1)
-                                                                for network in self.network_dict[label]], axis=-1),
+        # A list of the networks: stacking them would hold them twice
+        self.tensor_dict[label] = tensor_decomp([network.toarray() for network in self.network_dict[label]],
                                                 gene_names, **kwargs)
 
     def _save_comp(self,
@@ -508,6 +510,8 @@ class scTenifoldKnk(scBase):
     step_defaults = {"nc_kws": {"q": 0.9},
                      "td_kws": {"K": 3, "n_decimal": 3},
                      "ma_kws": {"d": 2}}
+    # The genes knocked out by the ko step, which can differ from ko_genes
+    cls_prop = scBase.cls_prop + ["_ko_genes_used"]
 
     def __init__(self,
                  data: ExpressionData,
@@ -553,10 +557,12 @@ class scTenifoldKnk(scBase):
              verbose: bool = True,
              **kwargs: object) -> None:
         """Save state plus KO-specific fields so :meth:`load` can rebuild."""
+        # The dr step of a loaded instance needs the genes the ko step used
+        ko_genes_used = {"_ko_genes_used": self._ko_genes_used} if hasattr(self, "_ko_genes_used") else {}
         super().save(file_dir, comps, verbose,
                      data="",
                      ko_method=self.ko_method,
-                     strict_lambda=self.strict_lambda, ko_genes=self.ko_genes)
+                     strict_lambda=self.strict_lambda, ko_genes=self.ko_genes, **ko_genes_used)
 
     def _get_ko_tensor(self, ko_genes, **kwargs):
         if self.ko_method not in ("default", "propagation"):
@@ -596,7 +602,6 @@ class scTenifoldKnk(scBase):
             self.tensor_dict["KO"].loc[ko_genes, :] = 0
             self._warn_no_outgoing_edges(ko_genes)
         elif self.ko_method == "propagation":
-            print(self.QC_dict["WT"].index)
             self.network_dict["KO"] = reconstruct_pcnets(self.network_dict["WT"],
                                                          self.QC_dict["WT"],
                                                          ko_gene_id=[self.QC_dict["WT"].index.get_loc(i)
@@ -645,7 +650,8 @@ class scTenifoldKnk(scBase):
               to override ``self.ko_genes`` for this call.
             - ``"ma"`` — manifold alignment of WT vs. KO tensors.
             - ``"dr"`` — differential regulation from the aligned
-              manifold.
+              manifold, leaving the knocked-out genes out of the
+              expectation.
         **kwargs
             One-shot overrides for the step. When non-empty these
             replace the corresponding ``*_kws`` dict on the instance
@@ -678,13 +684,18 @@ class scTenifoldKnk(scBase):
                 ko_genes = self.ko_genes
             ko_kwargs.update(kwargs)
             self._get_ko_tensor(ko_genes, **ko_kwargs)
+            self._ko_genes_used = [ko_genes] if isinstance(ko_genes, str) else list(ko_genes)
         elif step_name == "ma":
             self.manifold = manifold_alignment(self.tensor_dict["WT"],
                                                self.tensor_dict["KO"],
                                                **self._step_kws("ma_kws", kwargs))
             self.step_comps["ma"] = self.manifold
         elif step_name == "dr":
-            self.d_regulation = d_regulation(self.manifold, **self._step_kws("dr_kws", kwargs))
+            # The knocked-out genes are left out of the expectation, as in R
+            dr_kws = dict(self._step_kws("dr_kws", kwargs))
+            if "ko_genes" not in dr_kws and "n_ko_genes" not in dr_kws:
+                dr_kws["ko_genes"] = getattr(self, "_ko_genes_used", self.ko_genes)
+            self.d_regulation = d_regulation(self.manifold, **dr_kws)
             self.step_comps["dr"] = self.d_regulation
         else:
             raise ValueError("No such step")
