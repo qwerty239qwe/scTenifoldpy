@@ -782,7 +782,7 @@ def _dr_statistics(d_metrics: np.ndarray,
     if direction is not None:
         if not isinstance(direction, pd.Series):
             raise ValueError("'direction' must be a pandas Series of direction scores indexed by gene")
-        score = direction.reindex(gene_names).to_numpy(dtype=float)
+        score = direction.reindex(gene_names).to_numpy(dtype=float, copy=True)
         score[is_ko] = np.nan
         df["direction"] = np.where(is_ko | (score < 0), "down", np.where(score > 0, "up", None))
         df["direction score"] = score
