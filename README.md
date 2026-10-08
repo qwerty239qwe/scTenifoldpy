@@ -134,6 +134,24 @@ knockout = virtual_knockout(
 )
 ```
 
+## scTenifoldKnk 2.0: Direction and Transcriptome-Wide Knockouts
+
+Version 2.0 matches the R package scTenifoldKnk 2.0 (same results, see `tests/test_heat.py`).
+
+- **Direction.** The differential regulation table gains `direction` (`"up"`/`"down"`) and `direction score` (`dr_direction=True`, default). The direction is predicted from WT expression only (`knockout_direction`): the knockout is diffused over the heat kernel of the WT gene-gene correlation matrix of log1p(CPM) expression, and its sign is the direction.
+- **Heat manifold alignment.** `ma_method="heat"` computes the heat kernel of the WT network once (`heat_kernel`, `hk_manifold_alignment`) and reads every knockout from it, instead of one manifold alignment per knockout.
+- **Transcriptome-wide knockouts.** `transcriptome_wide()` knocks out each gene of the WT network separately and returns the distance and direction matrices (knockouts x genes).
+
+```python
+from scTenifold import scTenifoldKnk
+
+sc = scTenifoldKnk(df_1, ko_genes=["NG-1"], qc_kws={"min_lib_size": 10, "min_percent": 0.001})
+result = sc.build()          # includes "direction" and "direction score"
+tw = sc.transcriptome_wide() # {"distances": ..., "directions": ...}
+```
+
+Limitations: the predicted direction mainly reflects the response shared by most perturbations, not regulation specific to the knocked-out gene, and its accuracy varies between cell types and data sets. When nearly every gene is predicted down (a sequencing-depth axis in the correlations), `dr_direction_regress_lib_size=True` regresses log library size out of each gene first; it is off by default. `dr_direction=False` gives the 0.5.x table. Comparison of knockouts with a disease signature (`perturbationMap()`) is available in R only.
+
 ## Cell-Cell Interaction (scTenifoldXct)
 
 `scTenifoldXct` is maintained separately

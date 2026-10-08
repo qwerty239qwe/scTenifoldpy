@@ -36,6 +36,16 @@ Differences from ``scTenifoldNet``:
   - ``ko_method="propagation"`` rebuilds PC networks with the targeted
     columns masked using :func:`reconstruct_pcnets`, then re-decomposes.
     Use ``ko_kws={"degree": N}`` to set propagation depth.
+- ``ma`` uses the manifold alignment (``ma_method="manifold"``, default)
+  or the heat manifold alignment (``ma_method="heat"``,
+  :func:`hk_manifold_alignment`), which reads the knockout from the heat
+  kernel of the WT network.
+- ``dr`` adds the predicted direction of each gene (``direction`` and
+  ``direction score``, :func:`knockout_direction`) unless
+  ``dr_direction=False``.
+- ``transcriptome_wide()``, run after ``qc``, ``nc`` and ``td``, knocks out
+  each gene of the WT network separately and returns the distance and
+  direction matrices.
 
 ## Agreement with the R Packages
 

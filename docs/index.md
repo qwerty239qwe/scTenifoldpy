@@ -7,8 +7,9 @@ single-cell gene-regulatory-network analyses. It provides three workflows:
   genes by differential regulation. Use it when you have a control and a
   condition sample.
 - **scTenifoldKnk**: build a wild-type network and simulate a virtual
-  knockout of one or more genes. Use it when you only have one sample and
-  want to predict downstream effects of perturbing a gene.
+  knockout of one or more genes, or of every gene of the network. Use it
+  when you only have one sample and want to predict which genes respond to
+  perturbing a gene, and in which direction.
 - **scTenifoldXct**: predict cell-cell interactions between a sender and a
   receiver cell type using per-cell-type GRNs and neural-network manifold
   alignment. Available via the optional ``[xct]`` extra.
@@ -72,5 +73,5 @@ The returned DataFrame has one row per shared gene with columns
 
 ## Version
 
-This documentation reflects ``0.3.x``. See the
-[Changelog](changelog.md) for what changed since ``0.1``.
+This documentation reflects ``2.0.x``, which matches the R package
+scTenifoldKnk 2.0. See the [Changelog](changelog.md) for what changed.
