@@ -1,5 +1,36 @@
 # Changelog
 
+## 2.0.0
+
+Version 2.0.0 aligns with the R package scTenifoldKnk 2.0.0 and gives the
+same results (`tests/test_heat.py`).
+
+### New
+
+- **Direction of the response.** `knockout_direction` predicts whether each
+  gene goes up or down after a knockout, from the heat kernel of the WT
+  gene-gene correlation matrix of log1p(CPM) expression. `scTenifoldKnk`
+  adds it by default (`dr_direction=True`, `dr_direction_t=5`) as the
+  `direction` and `direction score` columns of the differential regulation
+  table. `dr_direction_regress_lib_size=True` (off by default) regresses
+  log library size out of each gene first, for data sets in which nearly
+  all genes are predicted down.
+- **Heat manifold alignment.** `hk_manifold_alignment` computes the heat
+  kernel of the WT network once (`heat_kernel`) and reads every knockout
+  from it. Selected with `ma_method="heat"` (`ma_heat_t=10`).
+- **Transcriptome-wide knockouts.** `scTenifoldKnk.transcriptome_wide()`
+  knocks out each gene of the WT network in turn (heat manifold alignment
+  by default) and returns the distance and direction matrices.
+- `virtual_knockout` forwards the new options; `d_regulation` accepts a
+  `direction` Series. The qc step of `scTenifoldKnk` keeps the library
+  sizes of the QC'd cells (saved with the instance).
+
+### Changes in behaviour
+
+- The differential regulation table of `scTenifoldKnk` has two more
+  columns by default. `dr_direction=False` gives the 0.5.1 table; the
+  other columns and the gene ranking are unchanged.
+
 ## 0.5.1
 
 - **scTenifoldKnk leaves the knocked-out genes out of the expectation** of

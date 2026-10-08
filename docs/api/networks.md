@@ -1,7 +1,8 @@
 # Network Functions
 
 Core functions for expression conversion, PC network construction,
-manifold alignment, differential regulation, and edge-direction pruning.
+manifold alignment, heat-kernel knockouts, differential regulation, and
+edge-direction pruning.
 
 ## Inputs and Network Construction
 
@@ -28,5 +29,19 @@ manifold alignment, differential regulation, and edge-direction pruning.
       show_root_heading: true
 
 ::: scTenifold.core._networks.strict_direction
+    options:
+      show_root_heading: true
+
+## Heat Kernel and Direction
+
+::: scTenifold.core._heat.heat_kernel
+    options:
+      show_root_heading: true
+
+::: scTenifold.core._heat.hk_manifold_alignment
+    options:
+      show_root_heading: true
+
+::: scTenifold.core._heat.knockout_direction
     options:
       show_root_heading: true

@@ -16,6 +16,8 @@ from scTenifold.core._QC import sc_QC
 from scTenifold.core._norm import cpm_norm
 from scTenifold.core._decomposition import tensor_decomp
 from scTenifold.core._ko import reconstruct_pcnets
+from scTenifold.core._heat import _direction_scores, _hk_distances, _log_cpm
+from scTenifold.core._networks import _dr_statistics
 from scTenifold.plotting import plot_hist
 from scTenifold.data import read_folder
 
@@ -499,6 +501,25 @@ class scTenifoldKnk(scBase):
     ko_kws
         Extra kwargs forwarded to the KO step (e.g. ``degree`` for the
         propagation method).
+    ma_method
+        How the WT and KO networks are compared: ``"manifold"`` (default)
+        runs the non-linear manifold alignment; ``"heat"`` uses the heat
+        manifold alignment (:func:`hk_manifold_alignment`), which reads the
+        knockout from the heat kernel of the WT network. Same as
+        ``ma_method`` in R.
+    ma_heat_t
+        Diffusion time of the heat kernel when ``ma_method="heat"``.
+    dr_direction
+        If True (default), the dr step adds the predicted direction of the
+        change of each gene (columns ``"direction"`` and
+        ``"direction score"``), computed from the WT expression with
+        :func:`knockout_direction`.
+    dr_direction_t
+        Diffusion time of the correlation heat kernel used for the direction.
+    dr_direction_regress_lib_size
+        If True, log library size is regressed out of each gene before
+        computing the correlations used for the direction; consider it when
+        nearly all genes are predicted down. Default False.
 
     Notes
     -----
@@ -510,8 +531,9 @@ class scTenifoldKnk(scBase):
     step_defaults = {"nc_kws": {"q": 0.9},
                      "td_kws": {"K": 3, "n_decimal": 3},
                      "ma_kws": {"d": 2}}
-    # The genes knocked out by the ko step, which can differ from ko_genes
-    cls_prop = scBase.cls_prop + ["_ko_genes_used"]
+    # The genes knocked out by the ko step, which can differ from ko_genes, and
+    # the library sizes of the QC'd cells (the qc step keeps only their CPM)
+    cls_prop = scBase.cls_prop + ["_ko_genes_used", "_lib_size"]
 
     def __init__(self,
                  data: ExpressionData,
@@ -523,9 +545,22 @@ class scTenifoldKnk(scBase):
                  td_kws: Optional[Kwargs] = None,
                  ma_kws: Optional[Kwargs] = None,
                  dr_kws: Optional[Kwargs] = None,
-                 ko_kws: Optional[Kwargs] = None) -> None:
+                 ko_kws: Optional[Kwargs] = None,
+                 ma_method: Literal["manifold", "heat"] = "manifold",
+                 ma_heat_t: float = 10,
+                 dr_direction: bool = True,
+                 dr_direction_t: float = 5,
+                 dr_direction_regress_lib_size: bool = False) -> None:
         """See class docstring for parameter descriptions."""
         super().__init__(qc_kws=qc_kws, nc_kws=nc_kws, td_kws=td_kws, ma_kws=ma_kws, dr_kws=dr_kws)
+        if ma_method not in ("manifold", "heat"):
+            raise ValueError("ma_method must be 'manifold' or 'heat'")
+        self.ma_method = ma_method
+        self.ma_heat_t = ma_heat_t
+        self.dr_direction = dr_direction
+        self.dr_direction_t = dr_direction_t
+        self.dr_direction_regress_lib_size = dr_direction_regress_lib_size
+        self.hk_distances = None
         self.data_dict["WT"] = pd.DataFrame() if isinstance(data, str) and data == "" else anndata_to_dataframe(data)
         self.strict_lambda = strict_lambda
         self.ko_genes = ko_genes if ko_genes is not None else []
@@ -536,7 +571,9 @@ class scTenifoldKnk(scBase):
     def get_empty_config(cls) -> Dict[str, object]:
         """Return a blank scTenifoldKnk config dict populated with step defaults."""
         config = {"data_path": None, "strict_lambda": 0,
-                  "ko_method": "default", "ko_genes": []}
+                  "ko_method": "default", "ko_genes": [],
+                  "ma_method": "manifold", "ma_heat_t": 10, "dr_direction": True,
+                  "dr_direction_t": 5, "dr_direction_regress_lib_size": False}
         for kw, sig in cls.kw_sigs.items():
             config[kw] = cls.list_kws(kw)
         return config
@@ -558,11 +595,14 @@ class scTenifoldKnk(scBase):
              **kwargs: object) -> None:
         """Save state plus KO-specific fields so :meth:`load` can rebuild."""
         # The dr step of a loaded instance needs the genes the ko step used
-        ko_genes_used = {"_ko_genes_used": self._ko_genes_used} if hasattr(self, "_ko_genes_used") else {}
+        props = {k: getattr(self, k) for k in ("_ko_genes_used", "_lib_size") if hasattr(self, k)}
         super().save(file_dir, comps, verbose,
                      data="",
                      ko_method=self.ko_method,
-                     strict_lambda=self.strict_lambda, ko_genes=self.ko_genes, **ko_genes_used)
+                     strict_lambda=self.strict_lambda, ko_genes=self.ko_genes,
+                     ma_method=self.ma_method, ma_heat_t=self.ma_heat_t, dr_direction=self.dr_direction,
+                     dr_direction_t=self.dr_direction_t,
+                     dr_direction_regress_lib_size=self.dr_direction_regress_lib_size, **props)
 
     def _get_ko_tensor(self, ko_genes, **kwargs):
         if self.ko_method not in ("default", "propagation"):
@@ -624,6 +664,72 @@ class scTenifoldKnk(scBase):
             warn("The following genes have no outgoing edges in the WT network, so knocking them out "
                  f"has no effect: {', '.join(no_edges)}")
 
+    def _wt_stats(self, genes):
+        # log1p(CPM) statistics of the QC'd WT cells, as computed from qcCounts in R
+        if not hasattr(self, "_lib_size"):
+            raise ValueError("The library sizes of the QC'd cells are not available; rerun the qc step")
+        return _log_cpm(self.QC_dict["WT"], genes, np.asarray(self._lib_size, dtype=float))
+
+    def _wt_frame(self) -> pd.DataFrame:
+        # A loaded instance keeps the WT tensor as an unlabeled array
+        wt = self.tensor_dict["WT"]
+        if isinstance(wt, pd.DataFrame):
+            return wt
+        return pd.DataFrame(wt, index=self.shared_gene_names, columns=self.shared_gene_names)
+
+    def _direction(self, kos):
+        genes = pd.Index(self.shared_gene_names)
+        return _direction_scores(self._wt_stats(genes), genes, kos, t=self.dr_direction_t,
+                                 regress_lib_size=self.dr_direction_regress_lib_size)
+
+    def transcriptome_wide(self,
+                           ko_genes: Optional[Iterable[str]] = None,
+                           method: Optional[Literal["manifold", "heat"]] = "heat") -> Dict[str, pd.DataFrame]:
+        """Knock out each gene of the WT network in turn (``transcriptomeWide = TRUE`` in R).
+
+        Requires the ``qc``, ``nc`` and ``td`` steps.
+
+        Parameters
+        ----------
+        ko_genes
+            Genes to perturb, each one separately. ``None`` perturbs every
+            gene of the WT network.
+        method
+            ``"heat"`` (default) reads every knockout from the heat kernel of
+            the WT network (:func:`hk_manifold_alignment`); ``"manifold"`` runs
+            one manifold alignment per gene, whose running time scales with the
+            number of genes.
+
+        Returns
+        -------
+        dict with ``"distances"`` (perturbed genes x network genes) and, when
+        ``dr_direction`` is True, ``"directions"`` (1 up, -1 down, 0 undetermined).
+        """
+        self.tensor_dict["WT"] = _fill_dataframe_diagonal(self._wt_frame(), 0)
+        genes = pd.Index(self.tensor_dict["WT"].index)
+        targets = list(genes) if ko_genes is None else \
+            list(dict.fromkeys([ko_genes] if isinstance(ko_genes, str) else ko_genes))
+        missing = [g for g in targets if g not in genes]
+        if missing:
+            raise ValueError(f"The following genes are not present in the WT network: {missing}")
+        kos = [[g] for g in targets]
+        if method == "heat":
+            distances = _hk_distances(self.tensor_dict["WT"], self._wt_stats(genes), kos, t=self.ma_heat_t)
+        elif method == "manifold":
+            distances = pd.DataFrame(np.nan, index=targets, columns=genes)
+            for g in targets:
+                ko = self.tensor_dict["WT"].copy()
+                ko.loc[g, :] = 0
+                ma = manifold_alignment(self.tensor_dict["WT"], ko, **self.ma_kws)
+                dr = d_regulation(ma, ko_genes=[g])
+                distances.loc[g, dr["Gene"].to_numpy()] = dr["Distance"].to_numpy()
+        else:
+            raise ValueError("method must be 'manifold' or 'heat'")
+        out = {"distances": distances}
+        if self.dr_direction:
+            out["directions"] = np.sign(self._direction(kos))
+        return out
+
     def run_step(self,
                  step_name: Literal["qc", "nc", "td", "ko", "ma", "dr"],
                  **kwargs: object) -> None:
@@ -667,6 +773,7 @@ class scTenifoldKnk(scBase):
         start_time = time.perf_counter()
         if step_name == "qc":
             self._QC("WT", **self._step_kws("qc_kws", kwargs))
+            self._lib_size = self.QC_dict["WT"].sum(axis=0).astype(float).tolist()
             self.QC_dict["WT"] = cpm_norm(self.QC_dict["WT"])
             print("finish QC: WT")
         elif step_name == "nc":
@@ -686,16 +793,49 @@ class scTenifoldKnk(scBase):
             self._get_ko_tensor(ko_genes, **ko_kwargs)
             self._ko_genes_used = [ko_genes] if isinstance(ko_genes, str) else list(ko_genes)
         elif step_name == "ma":
-            self.manifold = manifold_alignment(self.tensor_dict["WT"],
-                                               self.tensor_dict["KO"],
-                                               **self._step_kws("ma_kws", kwargs))
+            if self.ma_method == "heat":
+                # The KO network is the WT network without the rows of the knocked-out genes
+                ko = getattr(self, "_ko_genes_used", self.ko_genes)
+                wt = self._wt_frame()
+                self.hk_distances = _hk_distances(wt, self._wt_stats(pd.Index(wt.index)), [list(ko)],
+                                                  t=self.ma_heat_t).iloc[0]
+                self.manifold = None
+            else:
+                self.manifold = manifold_alignment(self.tensor_dict["WT"],
+                                                   self.tensor_dict["KO"],
+                                                   **self._step_kws("ma_kws", kwargs))
             self.step_comps["ma"] = self.manifold
         elif step_name == "dr":
             # The knocked-out genes are left out of the expectation, as in R
             dr_kws = dict(self._step_kws("dr_kws", kwargs))
             if "ko_genes" not in dr_kws and "n_ko_genes" not in dr_kws:
                 dr_kws["ko_genes"] = getattr(self, "_ko_genes_used", self.ko_genes)
-            self.d_regulation = d_regulation(self.manifold, **dr_kws)
+            if self.dr_direction and "direction" not in dr_kws:
+                # the direction follows the genes actually knocked out, whatever the expectation uses
+                ko = getattr(self, "_ko_genes_used", self.ko_genes)
+                ko = [ko] if isinstance(ko, str) else list(ko or [])
+                if not ko:
+                    warn("No knocked-out genes are known, so the direction was not computed")
+                elif not hasattr(self, "_lib_size"):
+                    warn("The library sizes of the QC'd cells are not available (saved before scTenifoldpy "
+                         "computed directions); rerun the qc step to add the direction")
+                else:
+                    dr_kws["direction"] = self._direction([ko]).iloc[0]
+            if self.ma_method == "heat":
+                d = self.hk_distances
+                ko = dr_kws.pop("ko_genes", None)
+                n_ko = dr_kws.pop("n_ko_genes", 0)
+                if ko is not None:
+                    is_ko = np.isin(d.index, [ko] if isinstance(ko, str) else list(ko))
+                else:
+                    is_ko = np.zeros(len(d), dtype=bool)
+                    is_ko[np.argsort(d.to_numpy())[::-1][:n_ko]] = True
+                sorted_by, ascending = dr_kws.pop("sorted_by", "p-value"), dr_kws.pop("ascending", True)
+                self.d_regulation = _dr_statistics(d.to_numpy(), list(d.index), is_ko,
+                                                   np.sqrt(np.finfo(float).eps) * d.max(), sorted_by, ascending,
+                                                   **dr_kws)
+            else:
+                self.d_regulation = d_regulation(self.manifold, **dr_kws)
             self.step_comps["dr"] = self.d_regulation
         else:
             raise ValueError("No such step")

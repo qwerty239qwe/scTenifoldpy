@@ -683,6 +683,11 @@ def d_regulation(data: pd.DataFrame,
                 (default None, all genes)
             n_ko_genes - int, number of largest distances left out of the
                 expectation, ignored when ko_genes is given (default 0)
+            direction - optional pandas Series of direction scores indexed by
+                gene, e.g. a row of :func:`knockout_direction`; adds the
+                columns "direction" ("up"/"down"; the knocked-out genes are
+                "down") and "direction score" (NaN for the knocked-out genes).
+                Same as ``direction`` in R
 
     Examples
     ---------
@@ -696,7 +701,8 @@ def d_regulation(data: pd.DataFrame,
     -------
     d_reg_df: pd.DataFrame
         A dataFrame contains difference in regulation result sorted by p-value
-        columns: ["Gene", "Distance", "boxcox-transformed distance", "Z", "FC", "p-value", "adjusted p-value"]
+        columns: ["Gene", "Distance", "boxcox-transformed distance", "Z", "FC", "p-value", "adjusted p-value"],
+        plus ["direction", "direction score"] when ``direction`` is given
 
     """
     all_gene_names = data.index.to_list()
@@ -721,6 +727,21 @@ def d_regulation(data: pd.DataFrame,
         n_ko_genes = kwargs.get("n_ko_genes") if "n_ko_genes" in kwargs else 0
         is_ko = np.zeros(n_genes, dtype=bool)
         is_ko[np.argsort(d_metrics)[::-1][:n_ko_genes]] = True
+    # Distances at the level of floating-point noise mean the gene did not
+    # move between conditions; ranking them against each other would flag noise
+    noise_level = np.sqrt(np.finfo(float).eps) * np.max(np.abs(values))
+    return _dr_statistics(d_metrics, gene_names, is_ko, noise_level, sorted_by, ascending, **kwargs)
+
+
+def _dr_statistics(d_metrics: np.ndarray,
+                   gene_names: List[str],
+                   is_ko: np.ndarray,
+                   noise_level: float = 0,
+                   sorted_by: Union[str, list] = "p-value",
+                   ascending: Union[bool, list] = True,
+                   **kwargs: object) -> pd.DataFrame:
+    # Box-Cox / Z-score / chi-square statistics of the per-gene distances, shared by
+    # the manifold alignment and the heat manifold alignment routes (.drStatistics in R)
     boxcox_kws = kwargs.get("boxcox_kws") if "boxcox_kws" in kwargs else {}
     chi2_kws = dict(kwargs.get("chi2_kws")) if "chi2_kws" in kwargs else {}
     if "df" not in chi2_kws:
@@ -743,9 +764,6 @@ def d_regulation(data: pd.DataFrame,
         FC = np.power(d_metrics, 2) / expected_val
     p_values = stats.chi2.sf(FC, **chi2_kws)
 
-    # Distances at the level of floating-point noise mean the gene did not
-    # move between conditions; ranking them against each other would flag noise
-    noise_level = np.sqrt(np.finfo(float).eps) * np.max(np.abs(values))
     is_noise = d_metrics <= noise_level
     p_values[is_noise] = 1
     if is_noise.all():
@@ -760,6 +778,14 @@ def d_regulation(data: pd.DataFrame,
         "p-value": p_values,
         "adjusted p-value": p_adj
     })
+    direction = kwargs.get("direction")
+    if direction is not None:
+        if not isinstance(direction, pd.Series):
+            raise ValueError("'direction' must be a pandas Series of direction scores indexed by gene")
+        score = direction.reindex(gene_names).to_numpy(dtype=float, copy=True)
+        score[is_ko] = np.nan
+        df["direction"] = np.where(is_ko | (score < 0), "down", np.where(score > 0, "up", None))
+        df["direction score"] = score
     return df.sort_values(sorted_by, ascending=ascending, kind="mergesort")
 
 

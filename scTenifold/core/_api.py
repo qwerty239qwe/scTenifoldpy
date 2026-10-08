@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Union
+from typing import Iterable, Literal, Optional, Union
 
 import pandas as pd
 
@@ -110,7 +110,12 @@ def virtual_knockout(data: ExpressionData,
                      td_kws: Optional[Kwargs] = None,
                      ma_kws: Optional[Kwargs] = None,
                      dr_kws: Optional[Kwargs] = None,
-                     ko_kws: Optional[Kwargs] = None) -> pd.DataFrame:
+                     ko_kws: Optional[Kwargs] = None,
+                     ma_method: Literal["manifold", "heat"] = "manifold",
+                     ma_heat_t: float = 10,
+                     dr_direction: bool = True,
+                     dr_direction_t: float = 5,
+                     dr_direction_regress_lib_size: bool = False) -> pd.DataFrame:
     """Run the full scTenifoldKnk virtual-knockout workflow.
 
     Constructs a wild-type PC network from ``data``, simulates a knockout
@@ -153,6 +158,9 @@ def virtual_knockout(data: ExpressionData,
         and the KO step. ``backend``/``n_jobs``/``random_state`` already
         present in ``network_kws`` take precedence over the top-level
         arguments.
+    ma_method, ma_heat_t, dr_direction, dr_direction_t, dr_direction_regress_lib_size
+        Comparison of the WT and KO networks and predicted direction of each
+        gene, see :class:`scTenifoldKnk`.
 
     Returns
     -------
@@ -170,5 +178,10 @@ def virtual_knockout(data: ExpressionData,
         ma_kws=ma_kws,
         dr_kws=dr_kws,
         ko_kws=ko_kws,
+        ma_method=ma_method,
+        ma_heat_t=ma_heat_t,
+        dr_direction=dr_direction,
+        dr_direction_t=dr_direction_t,
+        dr_direction_regress_lib_size=dr_direction_regress_lib_size,
     )
     return sc.build()
