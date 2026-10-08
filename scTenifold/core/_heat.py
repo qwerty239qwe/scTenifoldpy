@@ -1,5 +1,5 @@
 """Heat-kernel tools for virtual knockouts, same as heatKernel, hkManifoldAlignment and
-knockoutDirection in the R package scTenifoldKnk (>= 1.2.0)."""
+knockoutDirection in the R package scTenifoldKnk (>= 2.0.0)."""
 from typing import Iterable, List, Optional, Sequence, Union
 
 import numpy as np

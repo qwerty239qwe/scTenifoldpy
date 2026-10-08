@@ -1,4 +1,4 @@
-"""Heat-kernel tools and predicted direction (scTenifoldKnk >= 1.2.0 in R).
+"""Heat-kernel tools and predicted direction (scTenifoldKnk >= 2.0.0 in R).
 
 The parity references are written by fixtures/r_reference/generate_heat.R.
 """
@@ -92,7 +92,7 @@ def wt():
 
 
 def test_fixture_versions():
-    assert "scTenifoldKnk 1.2.0" in (FIXTURES / "heat_versions.txt").read_text()
+    assert "scTenifoldKnk 2.0.0" in (FIXTURES / "heat_versions.txt").read_text()
 
 
 def test_heat_kernel_matches_r(wt):

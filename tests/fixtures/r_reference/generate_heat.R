@@ -1,4 +1,4 @@
-# Reference outputs of the heat-kernel tools of scTenifoldKnk (>= 1.2.0) for
+# Reference outputs of the heat-kernel tools of scTenifoldKnk (>= 2.0.0) for
 # tests/test_heat.py
 #
 #   Rscript tests/fixtures/r_reference/generate_heat.R
@@ -7,7 +7,7 @@
 # heat_versions.txt records the versions used.
 
 suppressPackageStartupMessages(library(scTenifoldKnk))
-stopifnot(packageVersion("scTenifoldKnk") >= "1.2.0")
+stopifnot(packageVersion("scTenifoldKnk") >= "2.0.0")
 
 out_dir <- "tests/fixtures/r_reference"
 if (!dir.exists(out_dir)) stop("run this script from the repository root")
