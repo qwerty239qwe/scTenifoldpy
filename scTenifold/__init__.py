@@ -4,6 +4,7 @@ from .core import *
 __all__ = ['scTenifoldNet', 'scTenifoldKnk',
            "sc_QC", "make_networks", "manifold_alignment", "d_regulation",
            "compare_networks", "virtual_knockout",
+           "heat_kernel", "hk_manifold_alignment", "knockout_direction",
            "scTenifoldXct", "merge_scTenifoldXct",
            "set_seed", "get_Xct_pairs", "plot_XNet"]
 

@@ -25,6 +25,11 @@ def _manifold(moved=(), n_genes=200, d=2, scale=None):
     return pd.DataFrame(np.vstack([X, Y]), index=[f"X_{g}" for g in genes] + [f"Y_{g}" for g in genes])
 
 
+def _stats(dr):
+    # the differential regulation columns, without the predicted direction the pipeline adds
+    return dr.drop(columns=["direction", "direction score"], errors="ignore")
+
+
 def _expected_fc(dr, ko_genes):
     d = dr.set_index("Gene")["Distance"]
     return dr["Distance"].to_numpy() ** 2 / np.mean(d[~d.index.isin(ko_genes)] ** 2)
@@ -104,7 +109,7 @@ def test_knk_leaves_the_ko_genes_out_of_the_expectation(counts, ko_genes):
     names = [ko_genes] if isinstance(ko_genes, str) else ko_genes
     dr = sc.d_regulation
     assert dr.loc[~dr["Gene"].isin(names), "FC"].mean() == pytest.approx(1)
-    pd.testing.assert_frame_equal(dr, d_regulation(sc.manifold, ko_genes=names))
+    pd.testing.assert_frame_equal(_stats(dr), d_regulation(sc.manifold, ko_genes=names))
 
 
 def test_knk_uses_the_genes_of_the_ko_step(counts):
@@ -115,12 +120,12 @@ def test_knk_uses_the_genes_of_the_ko_step(counts):
     sc.run_step("ko", ko_genes=["g2"])
     sc.run_step("ma")
     sc.run_step("dr")
-    pd.testing.assert_frame_equal(sc.d_regulation, d_regulation(sc.manifold, ko_genes=["g2"]))
+    pd.testing.assert_frame_equal(_stats(sc.d_regulation), d_regulation(sc.manifold, ko_genes=["g2"]))
 
 
 def test_knk_respects_n_ko_genes_in_dr_kws(counts):
     sc = _knk(counts, ["g1"], dr_kws={"n_ko_genes": 0})
-    pd.testing.assert_frame_equal(sc.d_regulation, d_regulation(sc.manifold))
+    pd.testing.assert_frame_equal(_stats(sc.d_regulation), d_regulation(sc.manifold))
 
 
 def test_loaded_knk_uses_the_genes_of_the_ko_step(counts, tmp_path):
@@ -133,5 +138,10 @@ def test_loaded_knk_uses_the_genes_of_the_ko_step(counts, tmp_path):
     sc.save(tmp_path / "knk", verbose=False)
     loaded = scTenifoldKnk.load(tmp_path / "knk")
     loaded.run_step("dr")
-    pd.testing.assert_frame_equal(loaded.d_regulation, d_regulation(sc.manifold, ko_genes=["g2"]),
+    pd.testing.assert_frame_equal(_stats(loaded.d_regulation), d_regulation(sc.manifold, ko_genes=["g2"]),
                                   check_exact=False, rtol=1e-12)
+    # the loaded instance still predicts the direction of the g2 knockout
+    sc.run_step("dr")
+    pd.testing.assert_frame_equal(loaded.d_regulation[["Gene", "direction", "direction score"]],
+                                  sc.d_regulation[["Gene", "direction", "direction score"]],
+                                  check_exact=False, rtol=1e-10)
